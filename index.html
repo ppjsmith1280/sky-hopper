@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-  <title>Sky Hopper</title>
+  <title>Flap Tap!</title>
   <meta name="theme-color" content="#2c80e2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Sky Hopper">
+  <meta name="apple-mobile-web-app-title" content="Flap Tap!">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" sizes="192x192" href="assets/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="assets/icon-512.png">
@@ -15,879 +15,885 @@
   <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
   <style>
     :root {
-      --glass: rgba(12, 20, 33, 0.38);
-      --glass-strong: rgba(10, 16, 28, 0.62);
+      --bg: #84bef9;
+      --frame: #2f78db;
+      --glass: rgba(12,20,33,.42);
+      --accent: #ffe28e;
       --text: #ffffff;
-      --muted: rgba(255,255,255,.85);
-      --accent: #ffe48a;
     }
-
     * { box-sizing: border-box; }
-
     html, body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      background: #87cfff;
+      margin: 0; width: 100%; height: 100%; overflow: hidden;
+      background: linear-gradient(180deg, #6bb3ff 0%, #2b67c1 100%);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      overflow: hidden;
-      overscroll-behavior: none;
-      touch-action: none;
+      overscroll-behavior: none; touch-action: none;
     }
-
-    body {
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-    }
-
+    body.mobile, body.standalone { background: #87cfff; }
     .app {
-      position: fixed;
-      inset: 0;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      padding: 0;
-      margin: 0;
-      overflow: hidden;
+      position: fixed; inset: 0; display: grid; place-items: center;
+      padding: 0; overflow: hidden;
+    }
+    .frame {
+      position: relative; width: 100vw; height: 100vh; height: 100dvh;
       background: #87cfff;
-    }
-
-    .stage {
-      position: fixed;
-      inset: 0;
       overflow: hidden;
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
-      touch-action: none;
-      --ui-scale: 1;
-    }
-
-    canvas {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      display: block;
       border-radius: 0;
       box-shadow: none;
+    }
+    body.desktop .frame {
+      width: min(calc((100vh - 44px) * 9 / 16), calc(100vw - 40px));
+      height: min(calc((100vw - 40px) * 16 / 9), calc(100vh - 44px));
+      border-radius: 34px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.22), inset 0 0 0 10px rgba(255,255,255,.12);
+      background: #5ca9ff;
+    }
+    canvas {
+      position: absolute; inset: 0; width: 100%; height: 100%; display: block;
       background: #87cfff;
     }
-
-    .hud {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-    }
-
+    .hud { position: absolute; inset: 0; pointer-events: none; }
     .chips {
       position: absolute;
-      top: calc(env(safe-area-inset-top, 0px) + 10px * var(--ui-scale));
-      left: calc(14px * var(--ui-scale));
-      right: calc(14px * var(--ui-scale));
-      display: flex;
-      justify-content: space-between;
-      gap: calc(10px * var(--ui-scale));
+      top: calc(env(safe-area-inset-top, 0px) + 10px * var(--ui-scale,1));
+      left: calc(14px * var(--ui-scale,1));
+      right: calc(14px * var(--ui-scale,1));
+      display: flex; justify-content: space-between; gap: calc(10px * var(--ui-scale,1));
     }
-
     .chip {
-      padding: calc(10px * var(--ui-scale)) calc(14px * var(--ui-scale));
-      border-radius: calc(18px * var(--ui-scale));
-      background: var(--glass);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
-      min-width: calc(74px * var(--ui-scale));
+      padding: calc(10px * var(--ui-scale,1)) calc(14px * var(--ui-scale,1));
+      border-radius: calc(18px * var(--ui-scale,1));
+      background: rgba(12,20,33,.38);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.16);
+      min-width: calc(78px * var(--ui-scale,1));
     }
-
     .chip .label {
-      display: block;
-      font-size: calc(11px * var(--ui-scale));
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: rgba(255,255,255,.7);
-      margin-bottom: calc(2px * var(--ui-scale));
+      display:block; font-size: calc(11px * var(--ui-scale,1)); letter-spacing:.12em; text-transform:uppercase;
+      color: rgba(255,255,255,.72); margin-bottom: calc(2px * var(--ui-scale,1));
     }
-
     .chip .value {
-      display: block;
-      width: 100%;
-      text-align: right;
-      font-size: calc(28px * var(--ui-scale));
-      font-weight: 800;
-      line-height: 1;
-      color: #fff8d5;
-      text-shadow: 0 2px 10px rgba(0,0,0,.18);
+      display:block; width:100%; text-align:right; font-size: calc(28px * var(--ui-scale,1)); line-height:1;
+      font-weight:800; color:#fff8d5; text-shadow: 0 2px 10px rgba(0,0,0,.18);
     }
-
-    .panel {
-      position: absolute;
-      left: 50%;
-      top: 52%;
-      transform: translate(-50%, -50%);
-      width: min(86%, calc(360px * var(--ui-scale)));
-      padding: calc(20px * var(--ui-scale)) calc(18px * var(--ui-scale)) calc(18px * var(--ui-scale));
-      border-radius: calc(24px * var(--ui-scale));
-      background: rgba(10, 16, 28, 0.62);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 18px 46px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.16);
-      text-align: center;
+    .loading {
+      position:absolute; left:0; right:0; bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+      text-align:center; font-size: 14px; color: rgba(255,255,255,.92);
+      text-shadow: 0 2px 10px rgba(0,0,0,.35); letter-spacing: .02em;
+      pointer-events:none;
     }
-
-    .panel.hidden { display: none; }
-
-    .panel h1 {
-      margin: 0 0 calc(8px * var(--ui-scale));
-      font-size: calc(38px * var(--ui-scale));
-      line-height: 1;
-    }
-
-    .subtitle {
-      margin: 0;
-      font-size: calc(15px * var(--ui-scale));
-      line-height: 1.45;
-      color: var(--muted);
-    }
-
-    .action {
-      margin: calc(14px * var(--ui-scale)) 0 calc(8px * var(--ui-scale));
-      font-weight: 800;
-      font-size: calc(15px * var(--ui-scale));
-      color: var(--accent);
-    }
-
-    .small {
-      margin: 0;
-      font-size: calc(13px * var(--ui-scale));
-      color: rgba(255,255,255,.74);
-    }
-
-    .tap-zone {
-      position: absolute;
-      inset: 0;
-      z-index: 4;
-      background: transparent;
-    }
-
-    .footer-note {
-      display: none;
+    .hidden-input {
+      position: absolute; opacity: 0; pointer-events: none; left: -9999px; top: -9999px;
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <div class="stage" id="stage">
-      <canvas id="game" width="420" height="740" aria-label="Sky Hopper game"></canvas>
-
+    <div class="frame" id="frame">
+      <canvas id="game" width="420" height="740"></canvas>
       <div class="hud">
         <div class="chips">
-          <div class="chip">
-            <span class="label">Score</span>
-            <span class="value" id="score">0</span>
-          </div>
-          <div class="chip">
-            <span class="label">Best</span>
-            <span class="value" id="best">0</span>
-          </div>
-        </div>
-
-        <div class="panel" id="panel">
-          <h1 id="panelTitle">Sky Hopper</h1>
-          <p class="subtitle" id="panelSubtitle">An original tap to fly arcade game</p>
-          <p class="action" id="panelAction">Tap, click, or press Space to start</p>
-          <p class="small" id="panelSmall">Pass through the ancient columns.</p>
+          <div class="chip"><span class="label">Score</span><span class="value" id="score">0</span></div>
+          <div class="chip"><span class="label">Best</span><span class="value" id="best">0</span></div>
         </div>
       </div>
-
-      <div class="tap-zone" id="tapZone" aria-hidden="true"></div>
+      <div class="loading" id="loadingText">Loading...</div>
+      <input class="hidden-input" id="initialsInput" maxlength="3" autocapitalize="characters" autocomplete="off" />
     </div>
-
-    <div class="footer-note">Tap or press Space to flap</div>
   </div>
-
   <script>
-    (() => {
-      const ASSETS = {
-        background: "assets/background.png",
-        bird: "assets/bird_sheet.png",
-        ground: "assets/ground.png",
-        pillarCap: "assets/pillar_cap.png",
-        pillarBase: "assets/pillar_base.png",
-        pillarColumn: "assets/pillar_column.png"
-      };
+  (() => {
+    const frameEl = document.getElementById('frame');
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const loadingEl = document.getElementById('loadingText');
+    const scoreEl = document.getElementById('score');
+    const bestEl = document.getElementById('best');
+    const initialsInput = document.getElementById('initialsInput');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
-      const canvas = document.getElementById("game");
-      const ctx = canvas.getContext("2d");
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+    document.body.classList.toggle('standalone', !!isStandalone);
+    document.body.classList.toggle('mobile', !!isMobile);
+    document.body.classList.toggle('desktop', !(isStandalone || isMobile));
 
-      const stageEl = document.getElementById("stage");
-      const tapZone = document.getElementById("tapZone");
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
+    let W = 420, H = 740, groundH = 86, groundY = 654;
 
-      const ui = {
-        score: document.getElementById("score"),
-        best: document.getElementById("best"),
-        panel: document.getElementById("panel"),
-        title: document.getElementById("panelTitle"),
-        subtitle: document.getElementById("panelSubtitle"),
-        action: document.getElementById("panelAction"),
-        small: document.getElementById("panelSmall")
-      };
+    const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+    const rand = (min,max)=>Math.random()*(max-min)+min;
+    const lerp = (a,b,t)=>a+(b-a)*t;
 
-      const DPR = Math.min(window.devicePixelRatio || 1, 2);
-      const BASE_WIDTH = 420;
+    const STORAGE_KEYS = {
+      best: 'flap_tap_best',
+      initials: 'flap_tap_initials',
+      board: 'flap_tap_board',
+      settings: 'flap_tap_settings'
+    };
 
-      const img = {
-        background: new Image(),
-        bird: new Image(),
-        ground: new Image(),
-        pillarCap: new Image(),
-        pillarBase: new Image(),
-        pillarColumn: new Image()
-      };
+    function loadJSON(key, fallback){ try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch(e){ return fallback; } }
+    function saveJSON(key, value){ try { localStorage.setItem(key, JSON.stringify(value)); } catch(e){} }
+    function saveText(key, value){ try { localStorage.setItem(key, value); } catch(e){} }
 
-      img.background.src = ASSETS.background;
-      img.bird.src = ASSETS.bird;
-      img.ground.src = ASSETS.ground;
-      img.pillarCap.src = ASSETS.pillarCap;
-      img.pillarBase.src = ASSETS.pillarBase;
-      img.pillarColumn.src = ASSETS.pillarColumn;
+    const state = {
+      mode: 'loading', // loading title playing crash leaderboard settings editInitials
+      readyEssential: false,
+      readyGameplay: false,
+      orientationBlocked: false,
+      lastTs: 0,
+      t: 0,
+      score: 0,
+      best: Number(localStorage.getItem(STORAGE_KEYS.best) || 0),
+      initials: (localStorage.getItem(STORAGE_KEYS.initials) || 'AAA').slice(0,3).toUpperCase(),
+      leaderboard: loadJSON(STORAGE_KEYS.board, []),
+      settings: Object.assign({music:true, sfx:true}, loadJSON(STORAGE_KEYS.settings, {})),
+      bgScroll: 0,
+      groundScroll: 0,
+      spawnTimer: 0,
+      pipes: [],
+      feathers: [],
+      particles: [],
+      buttons: [],
+      flash: 0,
+      shake: 0,
+      crashLock: 0,
+      worldSpeed: 238,
+      titlePulse: 0,
+      currentTheme: 'day',
+      transition: null,
+      themeCycleLength: 50,
+      clouds: [],
+      stars: [],
+      shootingStars: [],
+      audioUnlocked: false,
+      initialsDraft: '',
+      uiMessage: ''
+    };
 
-      const BOX = {
-        birdSheet: { x: 64, y: 66, w: 2381, h: 459 },
-        birdTrimX: 30,
-        birdTrimY: 10,
-        groundCrop: { x: 0, y: 218, w: 2508, h: 249 }
-      };
+    const bird = {
+      x: 0, y: 0, vy: 0, width: 66, height: 52, frame: 0, frameTimer: 0, angle: 0
+    };
 
-      const PIPE_CONFIG = {
-        baseShift: 25,
-        bottomShift: 5,
-        topOffset: -5,
-        minShaftH: 45
-      };
+    const PIPE_CONFIG = {
+      baseShift: 26,
+      bottomShift: 6,
+      topOffset: -6,
+      minShaftH: 22
+    };
+    const DIFFICULTY = {
+      baseGapRatio: 0.255,
+      maxGapPx: 220,
+      minGapPx: 130,
+      gapTightenPerPoint: 1.2,
+      baseSpawnInterval: 1.46,
+      minSpawnInterval: 0.88,
+      spawnTightenPerPoint: 0.016,
+      speedIncreasePerPoint: 0.019,
+      maxSpeedBoost: 0.95
+    };
 
-      const DIFFICULTY = {
-        baseGapRatio: 0.235,
-        maxGapPx: 205,
-        minGapPx: 142,
-        gapTightenPerPoint: 1.3,
-        baseSpawnInterval: 1.45,
-        minSpawnInterval: 0.88,
-        spawnTightenPerPoint: 0.02,
-        speedIncreasePerPoint: 0.022,
-        maxSpeedBoost: 0.80
-      };
+    const IMAGE_PATHS = {
+      essential: [
+        ['titleLogo', 'assets/title_logo.png'],
+        ['crashedText', 'assets/crashed_text.png'],
+        ['rotatePhone', 'assets/rotate_phone.png'],
+        ['background_day', 'assets/background_day.png'],
+        ['ground_day', 'assets/ground_day.png'],
+        ['bird_sheet_day', 'assets/bird_sheet_day.png'],
+        ['ui_leaderboard', 'assets/ui_leaderboard.png'],
+        ['ui_settings', 'assets/ui_settings.png'],
+        ['ui_panel', 'assets/ui_panel.png']
+      ],
+      gameplay: [
+        ['background_sunset', 'assets/background_sunset.png'],
+        ['background_night', 'assets/background_night.png'],
+        ['background_sunrise', 'assets/background_sunrise.png'],
+        ['ground_sunset', 'assets/ground_sunset.png'],
+        ['ground_night', 'assets/ground_night.png'],
+        ['ground_sunrise', 'assets/ground_sunrise.png'],
+        ['bird_sheet_sunset', 'assets/bird_sheet_sunset.png'],
+        ['bird_sheet_night', 'assets/bird_sheet_night.png'],
+        ['bird_sheet_sunrise', 'assets/bird_sheet_sunrise.png'],
+        ['pillar_base_day', 'assets/pillar_base_day.png'],
+        ['pillar_base_sunset', 'assets/pillar_base_sunset.png'],
+        ['pillar_base_night', 'assets/pillar_base_night.png'],
+        ['pillar_base_sunrise', 'assets/pillar_base_sunrise.png'],
+        ['pillar_column_day', 'assets/pillar_column_day.png'],
+        ['pillar_column_sunset', 'assets/pillar_column_sunset.png'],
+        ['pillar_column_night', 'assets/pillar_column_night.png'],
+        ['pillar_column_sunrise', 'assets/pillar_column_sunrise.png'],
+        ['pillar_broken_bottom_sheet_day', 'assets/pillar_broken_bottom_sheet_day.png'],
+        ['pillar_broken_bottom_sheet_sunset', 'assets/pillar_broken_bottom_sheet_sunset.png'],
+        ['pillar_broken_bottom_sheet_night', 'assets/pillar_broken_bottom_sheet_night.png'],
+        ['pillar_broken_bottom_sheet_sunrise', 'assets/pillar_broken_bottom_sheet_sunrise.png'],
+        ['pillar_broken_top_sheet_day', 'assets/pillar_broken_top_sheet_day.png'],
+        ['pillar_broken_top_sheet_sunset', 'assets/pillar_broken_top_sheet_sunset.png'],
+        ['pillar_broken_top_sheet_night', 'assets/pillar_broken_top_sheet_night.png'],
+        ['pillar_broken_top_sheet_sunrise', 'assets/pillar_broken_top_sheet_sunrise.png'],
+        ['cloud_sheet_day', 'assets/cloud_sheet_day.png'],
+        ['cloud_sheet_sunset', 'assets/cloud_sheet_sunset.png'],
+        ['cloud_sheet_night', 'assets/cloud_sheet_night.png'],
+        ['cloud_sheet_sunrise', 'assets/cloud_sheet_sunrise.png'],
+        ['feather_sheet_day', 'assets/feather_sheet_day.png'],
+        ['feather_sheet_sunset', 'assets/feather_sheet_sunset.png'],
+        ['feather_sheet_night', 'assets/feather_sheet_night.png'],
+        ['feather_sheet_sunrise', 'assets/feather_sheet_sunrise.png'],
+        ['starSheet', 'assets/star_sheet.png'],
+        ['shootingStar', 'assets/shooting_star.png']
+      ]
+    };
 
-      const state = {
-        mode: "loading",
-        t: 0,
-        bgScroll: 0,
-        groundScroll: 0,
-        spawnTimer: 0,
-        score: 0,
-        best: Number(localStorage.getItem("sky_hopper_best") || 0),
-        flash: 0,
-        shake: 0,
-        pipes: [],
-        particles: [],
-        worldSpeed: 238
-      };
+    const images = {};
+    function loadImage(src){ return new Promise((resolve) => { const im = new Image(); im.onload=()=>resolve(im); im.onerror=()=>resolve(im); im.src=src; }); }
+    async function loadGroup(group){ for (const [key, src] of group) { images[key] = await loadImage(src); } }
 
-      const bird = {
-        x: 0,
-        y: 0,
-        vy: 0,
-        width: 74,
-        height: 56,
-        frame: 0,
-        frameTimer: 0,
-        angle: 0
-      };
+    function sheetFrameCount(name){ if(name.includes('bird')) return 4; if(name.includes('cloud') || name.includes('feather')) return 6; if(name.includes('broken')) return 3; if(name==='starSheet') return 8; return 1; }
+    function getFrameRect(img, count, index){ const w = Math.floor(img.width / count); return {sx: w*index, sy:0, sw:w, sh:img.height}; }
 
-      let W = 420;
-      let H = 740;
-      let groundH = 86;
-      let groundY = H - groundH;
+    function resize(){
+      const vw = frameEl.clientWidth;
+      const vh = frameEl.clientHeight;
+      canvas.width = Math.round(vw * DPR);
+      canvas.height = Math.round(vh * DPR);
+      canvas.style.width = vw + 'px';
+      canvas.style.height = vh + 'px';
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      W = vw; H = vh;
+      groundH = Math.round(H * 0.11);
+      groundY = H - groundH + 1;
+      frameEl.style.setProperty('--ui-scale', (Math.min(vw/420, vh/740)).toFixed(4));
+      resetBird();
+      detectOrientationBlock();
+    }
 
-      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-      const rand = (min, max) => Math.random() * (max - min) + min;
+    function resetBird(){
+      bird.x = Math.round(W * 0.25);
+      bird.y = Math.round(H * 0.42);
+      bird.vy = 0; bird.angle = 0; bird.frame = 0; bird.frameTimer = 0;
+      bird.width = W * 0.16;
+      bird.height = bird.width * 0.78;
+    }
 
-      function currentGap() {
-        const startGap = clamp(H * DIFFICULTY.baseGapRatio, DIFFICULTY.minGapPx, DIFFICULTY.maxGapPx);
-        return clamp(
-          startGap - state.score * DIFFICULTY.gapTightenPerPoint,
-          DIFFICULTY.minGapPx,
-          DIFFICULTY.maxGapPx
-        );
-      }
+    function updateHud(){ scoreEl.textContent = String(state.score); bestEl.textContent = String(state.best); }
 
-      function currentSpawnInterval() {
-        return Math.max(
-          DIFFICULTY.minSpawnInterval,
-          DIFFICULTY.baseSpawnInterval - state.score * DIFFICULTY.spawnTightenPerPoint
-        );
-      }
-
-      function currentSpeed() {
-        return state.worldSpeed * (
-          1 + Math.min(DIFFICULTY.maxSpeedBoost, state.score * DIFFICULTY.speedIncreasePerPoint)
-        );
-      }
-
-      function setPanel(title, subtitle, action, small = "") {
-        ui.title.textContent = title;
-        ui.subtitle.textContent = subtitle;
-        ui.action.textContent = action;
-        ui.small.textContent = small;
-        ui.panel.classList.remove("hidden");
-      }
-
-      function hidePanel() {
-        ui.panel.classList.add("hidden");
-      }
-
-      function updateHud() {
-        ui.score.textContent = String(state.score);
-        ui.best.textContent = String(state.best);
-      }
-
-      function resize() {
-        const ratio = 9 / 16;
-        const viewW = window.innerWidth;
-        const viewH = window.innerHeight;
-
-        let cssW = viewW;
-        let cssH = cssW / ratio;
-
-        if (cssH < viewH) {
-          cssH = viewH;
-          cssW = cssH * ratio;
-        }
-
-        canvas.style.width = cssW + "px";
-        canvas.style.height = cssH + "px";
-        canvas.width = Math.round(cssW * DPR);
-        canvas.height = Math.round(cssH * DPR);
-
-        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-
-        W = cssW;
-        H = cssH;
-        groundH = Math.round(H * 0.115);
-        groundY = H - groundH + 1;
-
-        stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
-        resetBird();
-      }
-
-      function resetBird() {
-        bird.x = Math.round(W * 0.24);
-        bird.y = Math.round(H * 0.42);
-        bird.vy = 0;
-        bird.angle = 0;
-        bird.frame = 0;
-        bird.frameTimer = 0;
-        bird.width = W * 0.105;
-        bird.height = bird.width * 0.76;
-      }
-
-      function startFresh() {
-        state.mode = "ready";
-        state.t = 0;
-        state.bgScroll = 0;
-        state.groundScroll = 0;
-        state.spawnTimer = 0;
-        state.score = 0;
-        state.flash = 0;
-        state.shake = 0;
-        state.pipes = [];
-        state.particles = [];
-        resetBird();
-        updateHud();
-        setPanel("Sky Hopper", "An original tap to fly arcade game", "Tap, click, or press Space to start", "Pass through the ancient columns.");
-      }
-
-      function beginRun() {
-        state.mode = "playing";
-        hidePanel();
-        flap();
-      }
-
-      function gameOver() {
-        if (state.mode === "gameover") return;
-        state.mode = "gameover";
-        state.flash = 0.28;
-        state.shake = 10;
-
-        if (state.score > state.best) {
-          state.best = state.score;
-          localStorage.setItem("sky_hopper_best", String(state.best));
-        }
-
-        updateHud();
-        setPanel("Crashed!", `Score: ${state.score} • Best: ${state.best}`, "Tap, click, or press Space to play again", "Tip: short rhythmic taps work best.");
-        burst(bird.x, bird.y, 16, "#fff4c7");
-      }
-
-      function flap() {
-        bird.vy = -Math.max(325, H * 0.6);
-        bird.angle = -0.42;
-        burst(bird.x - 8, bird.y + 6, 4, "rgba(255,255,255,.42)", true);
-      }
-
-      function getPipeMetrics(width) {
-        const capH = width * (img.pillarCap.naturalHeight / img.pillarCap.naturalWidth);
-        const baseH = width * (img.pillarBase.naturalHeight / img.pillarBase.naturalWidth);
-
-        const widest = Math.max(img.pillarCap.naturalWidth, img.pillarBase.naturalWidth);
-        const shaftRatio = img.pillarColumn.naturalWidth / widest;
-        const shaftW = width * shaftRatio;
-
-        const capOverlapTop = Math.round(capH * 0.50);
-        const capOverlapBottom = Math.round(capH * 0.40);
-        const baseOverlap = Math.round(baseH * 0.30);
-
-        return { capH, baseH, shaftW, capOverlapTop, capOverlapBottom, baseOverlap };
-      }
-
-      function addPipe() {
-        const gap = currentGap();
-        const width = clamp(W * 0.148, 56, 72);
-        const x = W + width + 20;
-
-        const m = getPipeMetrics(width);
-        const lowerCenterFromTop =
-          gap / 2 +
-          (PIPE_CONFIG.minShaftH + m.capOverlapTop + m.baseH - m.baseOverlap - 4);
-
-        const upperCenterFromBottom =
-          groundY +
-          PIPE_CONFIG.baseShift +
-          PIPE_CONFIG.bottomShift -
-          m.baseOverlap -
-          4 -
-          m.capH +
-          m.capOverlapBottom -
-          PIPE_CONFIG.minShaftH -
-          gap / 2;
-
-        const ceilingMargin = H * 0.08 + gap / 2;
-        const floorMargin = H - (groundH + H * 0.05) - gap / 2;
-
-        let low = Math.max(ceilingMargin, lowerCenterFromTop);
-        let high = Math.min(floorMargin, upperCenterFromBottom);
-
-        if (low > high) {
-          low = Math.max(ceilingMargin, gap / 2 + 90);
-          high = Math.min(floorMargin, groundY - groundH - gap / 2 - 90);
-        }
-
-        const center = rand(low, high);
-
-        state.pipes.push({
-          x,
-          width,
-          topEnd: center - gap / 2,
-          bottomStart: center + gap / 2,
-          scored: false
-        });
-      }
-
-      function burst(x, y, count, color, soft = false) {
-        for (let i = 0; i < count; i++) {
-          state.particles.push({
-            x,
-            y,
-            vx: rand(-120, 120) + (soft ? -25 : 0),
-            vy: rand(-150, 40),
-            life: rand(0.3, 0.8),
-            maxLife: 1,
-            size: rand(soft ? 2 : 3, soft ? 5 : 8),
-            color
+    function initClouds(){
+      state.clouds = [];
+      const layers = [0,1,2,3];
+      layers.forEach(layer => {
+        const count = 2 + layer;
+        for(let i=0;i<count;i++){
+          state.clouds.push({
+            layer,
+            sprite: Math.floor(rand(0,6)),
+            x: rand(0,W) + i * (W/count),
+            y: H * (0.08 + layer * 0.07) + rand(-10,18),
+            scale: 0.66 + layer * 0.12 + rand(-0.05,0.08),
+            speed: 4 + layer * 3 + rand(0,2)
           });
         }
-      }
-
-      function scorePipe() {
-        state.score += 1;
-        updateHud();
-        state.flash = 0.05;
-        burst(bird.x + bird.width * 0.18, bird.y - bird.height * 0.05, 10, "rgba(255,245,168,.75)", true);
-      }
-
-      function updateParticles(dt) {
-        for (const p of state.particles) {
-          p.life -= dt;
-          p.x += p.vx * dt;
-          p.y += p.vy * dt;
-          p.vy += H * 0.45 * dt;
-          p.vx *= 0.99;
-        }
-        state.particles = state.particles.filter(p => p.life > 0);
-      }
-
-      function getPipeParts(pipe) {
-        const m = getPipeMetrics(pipe.width);
-        const shaftX = pipe.x + (pipe.width - m.shaftW) / 2;
-
-        const bottomCapY = pipe.bottomStart + 4 + PIPE_CONFIG.bottomShift;
-        const bottomBaseY = groundY - m.baseH + PIPE_CONFIG.baseShift + PIPE_CONFIG.bottomShift;
-        const bottomShaftY = bottomCapY + m.capH - m.capOverlapBottom;
-        const bottomShaftEnd = bottomBaseY + m.baseH - m.baseOverlap;
-        const bottomShaftH = Math.max(PIPE_CONFIG.minShaftH, bottomShaftEnd - bottomShaftY);
-
-        const topBaseY = PIPE_CONFIG.topOffset;
-        const topCapY = pipe.topEnd - m.capH + 4 + PIPE_CONFIG.topOffset;
-        const topShaftY = topBaseY + m.baseH - m.baseOverlap;
-        const topShaftEnd = topCapY + m.capH - m.capOverlapTop;
-        const topShaftH = Math.max(PIPE_CONFIG.minShaftH, topShaftEnd - topShaftY);
-
-        return {
-          top: {
-            base: { x: pipe.x, y: topBaseY, w: pipe.width, h: m.baseH },
-            shaft: { x: shaftX, y: topShaftY, w: m.shaftW, h: topShaftH },
-            cap: { x: pipe.x, y: topCapY, w: pipe.width, h: m.capH }
-          },
-          bottom: {
-            cap: { x: pipe.x, y: bottomCapY, w: pipe.width, h: m.capH },
-            shaft: { x: shaftX, y: bottomShaftY, w: m.shaftW, h: bottomShaftH },
-            base: { x: pipe.x, y: bottomBaseY, w: pipe.width, h: m.baseH }
-          }
-        };
-      }
-
-      function hitRect(ax, ay, aw, ah, bx, by, bw, bh) {
-        return !(ax + aw < bx || ax > bx + bw || ay + ah < by || ay > by + bh);
-      }
-
-      function collides(pipe) {
-        const bx = bird.x - bird.width * 0.24;
-        const by = bird.y - bird.height * 0.24;
-        const bw = bird.width * 0.48;
-        const bh = bird.height * 0.48;
-
-        const parts = getPipeParts(pipe);
-        const rects = [
-          parts.top.base, parts.top.shaft, parts.top.cap,
-          parts.bottom.cap, parts.bottom.shaft, parts.bottom.base
-        ];
-
-        return rects.some(r => r.h > 0 && hitRect(bx, by, bw, bh, r.x, r.y, r.w, r.h));
-      }
-
-      function input() {
-        if (state.mode === "loading") return;
-        if (state.mode === "ready") return beginRun();
-        if (state.mode === "playing") return flap();
-        if (state.mode === "gameover") return startFresh();
-      }
-
-      function update(dt) {
-        state.t += dt;
-        state.flash = Math.max(0, state.flash - dt * 1.2);
-        state.shake = Math.max(0, state.shake - dt * 40);
-
-        bird.frameTimer += dt;
-        const flapRate = state.mode === "playing" ? 0.085 : 0.13;
-        if (bird.frameTimer > flapRate) {
-          bird.frameTimer = 0;
-          bird.frame = (bird.frame + 1) % 4;
-        }
-
-        if (state.mode === "ready") {
-          bird.y = H * 0.42 + Math.sin(state.t * 3.2) * 12;
-          bird.angle = Math.sin(state.t * 3.2) * 0.08;
-          updateParticles(dt);
-          return;
-        }
-
-        if (state.mode === "gameover") {
-          updateParticles(dt);
-          return;
-        }
-
-        if (state.mode !== "playing") {
-          updateParticles(dt);
-          return;
-        }
-
-        const speed = currentSpeed();
-        state.bgScroll += dt * speed * 0.16;
-        state.groundScroll += dt * speed;
-
-        bird.vy += H * 2.05 * dt;
-        bird.y += bird.vy * dt;
-        bird.angle = clamp(bird.vy / (H * 0.8), -0.65, 1.12);
-
-        state.spawnTimer += dt;
-        const spawnEvery = currentSpawnInterval();
-        while (state.spawnTimer >= spawnEvery) {
-          state.spawnTimer -= spawnEvery;
-          addPipe();
-        }
-
-        for (const pipe of state.pipes) {
-          pipe.x -= speed * dt;
-
-          if (!pipe.scored && pipe.x + pipe.width < bird.x) {
-            pipe.scored = true;
-            scorePipe();
-          }
-
-          if (collides(pipe)) {
-            gameOver();
-          }
-        }
-
-        state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -160);
-
-        const ceiling = bird.height * 0.42;
-        const floor = groundY - bird.height * 0.26 + 15;
-
-        if (bird.y < ceiling) {
-          bird.y = ceiling;
-          bird.vy = Math.max(0, bird.vy * 0.2);
-        }
-
-        if (bird.y > floor) {
-          bird.y = floor;
-          bird.vy = 0;
-          gameOver();
-        }
-
-        updateParticles(dt);
-      }
-
-      function drawRepeatingCrop(image, sx, sy, sw, sh, scroll, y, drawH, overlap = 0) {
-        const scale = drawH / sh;
-        const tileW = sw * scale;
-        const offset = ((scroll % tileW) + tileW) % tileW;
-
-        for (let x = -offset - tileW; x < W + tileW; x += (tileW - overlap)) {
-          ctx.drawImage(image, sx, sy, sw, sh, x, y, tileW, drawH);
-        }
-      }
-
-      function drawRepeatingImage(image, scroll, y, drawH, cropRight = 0, overlap = 0) {
-        const sw = image.width - cropRight;
-        const sh = image.height;
-        const scale = drawH / sh;
-        const tileW = sw * scale;
-        const offset = ((scroll % tileW) + tileW) % tileW;
-
-        for (let x = -offset - tileW; x < W + tileW; x += (tileW - overlap)) {
-          ctx.drawImage(image, 0, 0, sw, sh, x, y, tileW, drawH);
-        }
-      }
-
-      function drawBackground() {
-        drawRepeatingImage(
-          img.background,
-          state.bgScroll,
-          0,
-          H,
-          1,
-          1
-        );
-
-        const grad = ctx.createLinearGradient(0, 0, 0, H);
-        grad.addColorStop(0, "rgba(255,255,255,0.00)");
-        grad.addColorStop(1, "rgba(255,214,120,0.10)");
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, W, H);
-      }
-
-      function drawFlippedImage(image, rect) {
-        ctx.save();
-        ctx.translate(rect.x, rect.y + rect.h);
-        ctx.scale(1, -1);
-        ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, 0, 0, rect.w, rect.h);
-        ctx.restore();
-      }
-
-      function drawTiledColumn(rect, flipY = false) {
-        if (rect.h <= 0) return;
-
-        const tileH = rect.w * (img.pillarColumn.naturalHeight / img.pillarColumn.naturalWidth);
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(rect.x, rect.y, rect.w, rect.h);
-        ctx.clip();
-
-        if (flipY) {
-          ctx.translate(0, rect.y + rect.h);
-          ctx.scale(1, -1);
-          let y = 0;
-          while (y < rect.h + tileH) {
-            ctx.drawImage(img.pillarColumn, rect.x, y, rect.w, tileH);
-            y += tileH - 1;
-          }
-        } else {
-          let y = rect.y;
-          while (y < rect.y + rect.h + tileH) {
-            ctx.drawImage(img.pillarColumn, rect.x, y, rect.w, tileH);
-            y += tileH - 1;
-          }
-        }
-
-        ctx.restore();
-      }
-
-      function drawPipeShafts() {
-        for (const pipe of state.pipes) {
-          const parts = getPipeParts(pipe);
-          drawTiledColumn(parts.top.shaft, true);
-          drawTiledColumn(parts.bottom.shaft, false);
-        }
-      }
-
-      function drawPipeDecorations() {
-        for (const pipe of state.pipes) {
-          const parts = getPipeParts(pipe);
-
-          drawFlippedImage(img.pillarBase, parts.top.base);
-          drawFlippedImage(img.pillarCap, parts.top.cap);
-
-          ctx.drawImage(img.pillarBase, parts.bottom.base.x, parts.bottom.base.y, parts.bottom.base.w, parts.bottom.base.h);
-          ctx.drawImage(img.pillarCap, parts.bottom.cap.x, parts.bottom.cap.y, parts.bottom.cap.w, parts.bottom.cap.h);
-        }
-      }
-
-      function drawBird() {
-        const frames = 4;
-        const frameW = img.bird.width / frames;
-        const sx = bird.frame * frameW;
-
-        ctx.save();
-        ctx.translate(bird.x, bird.y);
-        ctx.rotate(bird.angle);
-        ctx.shadowColor = "rgba(0,0,0,.20)";
-        ctx.shadowBlur = 16;
-        ctx.shadowOffsetY = 8;
-
-        ctx.drawImage(
-          img.bird,
-          sx + BOX.birdTrimX,
-          BOX.birdSheet.y - BOX.birdTrimY,
-          frameW - BOX.birdTrimX * 2,
-          BOX.birdSheet.h + BOX.birdTrimY * 2,
-          -bird.width / 2,
-          -bird.height / 2,
-          bird.width,
-          bird.height
-        );
-
-        ctx.restore();
-      }
-
-      function drawParticles() {
-        for (const p of state.particles) {
-          ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
-          ctx.fillStyle = p.color;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1;
-      }
-
-      function drawGround() {
-        drawRepeatingCrop(
-          img.ground,
-          BOX.groundCrop.x,
-          BOX.groundCrop.y,
-          BOX.groundCrop.w,
-          BOX.groundCrop.h,
-          state.groundScroll,
-          groundY,
-          groundH,
-          1
-        );
-      }
-
-      function drawOverlay() {
-        if (state.flash > 0) {
-          ctx.fillStyle = `rgba(255,255,255,${state.flash})`;
-          ctx.fillRect(0, 0, W, H);
-        }
-      }
-
-      function draw() {
-        ctx.clearRect(0, 0, W, H);
-
-        if (state.shake > 0) {
-          ctx.save();
-          ctx.translate(rand(-state.shake, state.shake), rand(-state.shake, state.shake));
-        }
-
-        drawBackground();
-        drawPipeShafts();
-        drawGround();
-        drawPipeDecorations();
-        drawBird();
-        drawParticles();
-        drawOverlay();
-
-        if (state.shake > 0) ctx.restore();
-      }
-
-      function allImagesLoaded() {
-        return Object.values(img).every(i => i.complete && i.naturalWidth > 0);
-      }
-
-      function readyWhenLoaded() {
-        if (allImagesLoaded()) {
-          state.mode = "ready";
-          updateHud();
-          startFresh();
-        } else {
-          setTimeout(readyWhenLoaded, 60);
-        }
-      }
-
-      let last = 0;
-      function loop(ts) {
-        const dt = Math.min(0.033, (ts - last) / 1000 || 0);
-        last = ts;
-        update(dt);
-        draw();
-        requestAnimationFrame(loop);
-      }
-
-      window.addEventListener("resize", resize);
-
-      window.addEventListener("keydown", e => {
-        if (e.code === "Space" || e.code === "ArrowUp") {
-          e.preventDefault();
-          input();
-        }
-      }, { passive: false });
-
-      ["pointerdown", "touchstart", "mousedown"].forEach(evt => {
-        canvas.addEventListener(evt, e => {
-          e.preventDefault();
-          input();
-        }, { passive: false });
-
-        tapZone.addEventListener(evt, e => {
-          e.preventDefault();
-          input();
-        }, { passive: false });
       });
+      state.stars = [];
+      for(let i=0;i<42;i++){
+        state.stars.push({ x: rand(0,W), y: rand(8,H*0.42), s: rand(0.5,1.35), tw: rand(0,Math.PI*2)});
+      }
+      state.shootingStars = [];
+    }
 
-      resize();
-      updateHud();
-      setPanel("Loading...", "Preparing the artwork and game world", "One moment");
-      readyWhenLoaded();
+    function resetRun(toTitle=false){
+      state.t = 0; state.score = 0; state.bgScroll = 0; state.groundScroll = 0; state.spawnTimer = 0;
+      state.pipes = []; state.feathers = []; state.particles = []; state.flash = 0; state.shake = 0; state.crashLock = 0;
+      state.currentTheme = 'day'; state.transition = null; resetBird(); updateHud();
+      if (toTitle) state.mode = 'title';
+    }
+
+    function currentGap(){
+      const startGap = clamp(H * DIFFICULTY.baseGapRatio, DIFFICULTY.minGapPx, DIFFICULTY.maxGapPx);
+      return clamp(startGap - state.score * DIFFICULTY.gapTightenPerPoint, DIFFICULTY.minGapPx, DIFFICULTY.maxGapPx);
+    }
+    function currentSpawnInterval(){ return Math.max(DIFFICULTY.minSpawnInterval, DIFFICULTY.baseSpawnInterval - state.score * DIFFICULTY.spawnTightenPerPoint); }
+    function currentSpeed(){ return state.worldSpeed * (1 + Math.min(DIFFICULTY.maxSpeedBoost, state.score * DIFFICULTY.speedIncreasePerPoint)); }
+
+    function getThemeForScore(score){
+      const c = score % state.themeCycleLength;
+      if (c < 20) return 'day';
+      if (c < 25) return 'sunset';
+      if (c < 45) return 'night';
+      if (c < 50) return 'sunrise';
+      return 'day';
+    }
+    function updateThemeTransition(dt){
+      const target = getThemeForScore(state.score);
+      if (!state.transition && target !== state.currentTheme) {
+        state.transition = {from: state.currentTheme, to: target, p: 0};
+      }
+      if (state.transition) {
+        state.transition.p += dt / 1.2;
+        if (state.transition.p >= 1) {
+          state.currentTheme = state.transition.to;
+          state.transition = null;
+        }
+      }
+    }
+    function themePasses(){
+      if (state.transition) return [
+        {theme: state.transition.from, alpha: 1 - clamp(state.transition.p,0,1)},
+        {theme: state.transition.to, alpha: clamp(state.transition.p,0,1)}
+      ];
+      return [{theme: state.currentTheme, alpha: 1}];
+    }
+
+    function getImg(base, theme){ return images[`${base}_${theme}`] || images[`${base}_day`] || images[base]; }
+
+    function getPipeMetrics(width, theme){
+      const baseImg = getImg('pillar_base', theme); const shaftImg = getImg('pillar_column', theme);
+      const bottomImg = getImg('pillar_broken_bottom_sheet', theme); const topImg = getImg('pillar_broken_top_sheet', theme);
+      const baseH = width * ((baseImg?.naturalHeight || baseImg?.height || 1) / (baseImg?.naturalWidth || baseImg?.width || 1));
+      const bottomFrameW = (bottomImg?.naturalWidth || bottomImg?.width || 3) / 3;
+      const bottomH = width * ((bottomImg?.naturalHeight || bottomImg?.height || 1) / bottomFrameW);
+      const topFrameW = (topImg?.naturalWidth || topImg?.width || 3) / 3;
+      const topH = width * ((topImg?.naturalHeight || topImg?.height || 1) / topFrameW);
+      const widest = Math.max(baseImg?.naturalWidth || baseImg?.width || width, bottomFrameW, topFrameW);
+      const shaftW = width * ((shaftImg?.naturalWidth || shaftImg?.width || width) / widest);
+      const bottomOverlap = Math.round(bottomH * 0.38);
+      const topOverlap = Math.round(topH * 0.32);
+      const baseOverlap = Math.round(baseH * 0.24);
+      return {baseH, shaftW, bottomH, topH, bottomOverlap, topOverlap, baseOverlap};
+    }
+
+    function addPipe(){
+      const gap = currentGap();
+      const width = clamp(W * 0.19, 86, 108);
+      const x = W + width + 20;
+      const theme = state.currentTheme;
+      const m = getPipeMetrics(width, theme);
+      const lowerCenterFromTop = gap/2 + (PIPE_CONFIG.minShaftH + m.topOverlap + m.baseH - m.baseOverlap + 12);
+      const upperCenterFromBottom = groundY + PIPE_CONFIG.baseShift + PIPE_CONFIG.bottomShift - m.baseOverlap - 6 - m.bottomH + m.bottomOverlap - PIPE_CONFIG.minShaftH - gap/2;
+      let low = Math.max(H*0.08 + gap/2, lowerCenterFromTop);
+      let high = Math.min(H - (groundH + H*0.05) - gap/2, upperCenterFromBottom);
+      if (low > high) { low = H*0.22; high = H*0.65; }
+      const center = rand(low, high);
+      state.pipes.push({ x, width, topEnd: center-gap/2, bottomStart:center+gap/2, scored:false, topVar: Math.floor(rand(0,3)), bottomVar: Math.floor(rand(0,3)) });
+    }
+
+    function getPipeParts(pipe, theme){
+      const m = getPipeMetrics(pipe.width, theme);
+      const shaftX = pipe.x + (pipe.width - m.shaftW) / 2;
+
+      const bottomBrokenY = pipe.bottomStart + 4 + PIPE_CONFIG.bottomShift;
+      const bottomBaseY = groundY - m.baseH + PIPE_CONFIG.baseShift + PIPE_CONFIG.bottomShift + 5;
+      const bottomShaftY = bottomBrokenY + m.bottomH - m.bottomOverlap;
+      const bottomShaftEnd = bottomBaseY + m.baseH - m.baseOverlap;
+      const bottomShaftH = Math.max(PIPE_CONFIG.minShaftH, bottomShaftEnd - bottomShaftY);
+
+      const topBaseY = PIPE_CONFIG.topOffset - 5;
+      const topBrokenY = pipe.topEnd - m.topH + 2 + PIPE_CONFIG.topOffset - 5;
+      const topShaftY = topBaseY + m.baseH - m.baseOverlap;
+      const topShaftEnd = topBrokenY + m.topH - m.topOverlap;
+      const topShaftH = Math.max(PIPE_CONFIG.minShaftH, topShaftEnd - topShaftY);
+
+      return {
+        top: {
+          base: {x: pipe.x, y: topBaseY, w: pipe.width, h: m.baseH},
+          shaft: {x: shaftX, y: topShaftY, w: m.shaftW, h: topShaftH},
+          broken: {x: pipe.x, y: topBrokenY, w: pipe.width, h: m.topH}
+        },
+        bottom: {
+          broken: {x: pipe.x, y: bottomBrokenY, w: pipe.width, h: m.bottomH},
+          shaft: {x: shaftX, y: bottomShaftY, w: m.shaftW, h: bottomShaftH},
+          base: {x: pipe.x, y: bottomBaseY, w: pipe.width, h: m.baseH}
+        }
+      };
+    }
+
+    function hitRect(ax,ay,aw,ah,bx,by,bw,bh){ return !(ax+aw < bx || ax > bx+bw || ay+ah < by || ay > by+bh); }
+    function collides(pipe){
+      const bx = bird.x - bird.width*0.22, by = bird.y - bird.height*0.22, bw = bird.width*0.44, bh = bird.height*0.44;
+      const parts = getPipeParts(pipe, state.currentTheme);
+      const rects = [parts.top.base, parts.top.shaft, parts.top.broken, parts.bottom.broken, parts.bottom.shaft, parts.bottom.base];
+      return rects.some(r => r.h > 0 && hitRect(bx,by,bw,bh,r.x,r.y,r.w,r.h));
+    }
+
+    function addSmallBurst(x,y,count,color){
+      for(let i=0;i<count;i++) state.particles.push({x,y,vx:rand(-100,100),vy:rand(-120,20),life:rand(.35,.8),maxLife:1,size:rand(2,6),color});
+    }
+    function emitFeathers(x,y,count){
+      for(let i=0;i<count;i++) state.feathers.push({x,y,vx:rand(-220,220),vy:rand(-260,-50),rot:rand(-2.4,2.4),vr:rand(-5,5),life:rand(1.2,2.1),maxLife:1.8,frame:Math.floor(rand(0,6)),size:rand(28,46)});
+    }
+
+    function commitScore(){
+      if (state.score > state.best) { state.best = state.score; saveText(STORAGE_KEYS.best, String(state.best)); }
+      const board = state.leaderboard.slice();
+      board.push({initials: state.initials, score: state.score});
+      board.sort((a,b)=>b.score-a.score);
+      state.leaderboard = board.slice(0,10);
+      saveJSON(STORAGE_KEYS.board, state.leaderboard);
+    }
+
+    function resetButtons(){ state.buttons = []; }
+    function registerButton(id, x, y, w, h){ state.buttons.push({id,x,y,w,h}); }
+    function findButton(x, y){ return state.buttons.find(b => x>=b.x && x<=b.x+b.w && y>=b.y && y<=b.y+b.h); }
+
+    // ------- Audio -------
+    const AUDIO_FILES = { music:'assets/audio/music.mp3', flap:'assets/audio/flap.mp3', crash:'assets/audio/crash.mp3', thud:'assets/audio/thud.mp3', birdcluck:'assets/audio/birdcluck.mp3' };
+    const audio = { music: null };
+    function unlockAudio(){
+      if (state.audioUnlocked) return;
+      state.audioUnlocked = true;
+      if (!audio.music) {
+        audio.music = new Audio(AUDIO_FILES.music);
+        audio.music.loop = true; audio.music.preload = 'auto'; audio.music.volume = 0.5;
+        audio.music.addEventListener('error', ()=>{});
+      }
+      updateMusic();
+      try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(()=>{}); } catch(e) {}
+    }
+    function playSfx(name, vol=1){
+      if (!state.settings.sfx || !state.audioUnlocked) return;
+      try {
+        const a = new Audio(AUDIO_FILES[name]);
+        a.volume = vol; a.play().catch(()=>{});
+      } catch(e){}
+    }
+    function updateMusic(){
+      if (!audio.music || !state.audioUnlocked) return;
+      const want = state.settings.music && ['title','playing','crash','leaderboard','settings','editInitials'].includes(state.mode);
+      if (want) audio.music.play().catch(()=>{}); else audio.music.pause();
+    }
+
+    // ------- Input -------
+    function beginRun(){ if (!state.readyGameplay) return; state.mode = 'playing'; state.pipes=[]; state.spawnTimer=0; state.score=0; state.flash=0; state.shake=0; state.crashLock=0; resetBird(); flap(); updateHud(); updateMusic(); }
+    function flap(){ bird.vy = -Math.max(330, H*0.62); bird.angle = -0.42; playSfx('flap', 0.6); addSmallBurst(bird.x-10, bird.y+8, 4, 'rgba(255,255,255,.45)'); }
+    function enterCrash(){ if (state.mode === 'crash') return; state.mode = 'crash'; state.flash = 0.2; state.shake = 10; state.crashLock = 1; commitScore(); updateHud(); emitFeathers(W/2, H*0.40, 12); playSfx('crash', 0.8); playSfx('thud', 0.85); playSfx('birdcluck', 0.9); updateMusic(); }
+    function openLeaderboard(){ state.mode = 'leaderboard'; updateMusic(); }
+    function openSettings(){ state.mode = 'settings'; updateMusic(); }
+    function openInitialsEdit(){ state.mode = 'editInitials'; state.initialsDraft = state.initials; initialsInput.value = state.initialsDraft; initialsInput.focus(); initialsInput.select(); updateMusic(); }
+    function closePanels(){ if (state.mode !== 'playing' && state.mode !== 'crash' && state.mode !== 'title') state.mode = 'title'; updateMusic(); }
+
+    initialsInput.addEventListener('input', () => {
+      initialsInput.value = initialsInput.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3);
+      state.initialsDraft = initialsInput.value;
+    });
+    initialsInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); saveInitials(); }
+    });
+    function saveInitials(){
+      const val = (state.initialsDraft || initialsInput.value || state.initials || 'AAA').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3) || 'AAA';
+      state.initials = val; saveText(STORAGE_KEYS.initials, val); initialsInput.blur(); state.mode = 'settings';
+    }
+
+    function handleTap(x, y){
+      unlockAudio();
+      const button = findButton(x,y);
+      if (state.orientationBlocked) return;
+      if (button) {
+        switch(button.id){
+          case 'title-start': if (state.readyGameplay) beginRun(); break;
+          case 'title-leaderboard': openLeaderboard(); break;
+          case 'title-settings': openSettings(); break;
+          case 'back-title': closePanels(); break;
+          case 'open-leaderboard': openLeaderboard(); break;
+          case 'open-settings': openSettings(); break;
+          case 'restart-after-crash': if (state.crashLock<=0) { resetRun(); state.mode='title'; } break;
+          case 'settings-music': state.settings.music = !state.settings.music; saveJSON(STORAGE_KEYS.settings, state.settings); updateMusic(); break;
+          case 'settings-sfx': state.settings.sfx = !state.settings.sfx; saveJSON(STORAGE_KEYS.settings, state.settings); break;
+          case 'settings-initials': openInitialsEdit(); break;
+          case 'settings-close': state.mode = 'title'; break;
+          case 'leaderboard-close': state.mode = 'title'; break;
+          case 'leaderboard-edit': openInitialsEdit(); break;
+          case 'edit-save': saveInitials(); break;
+          case 'edit-cancel': initialsInput.blur(); state.mode='settings'; break;
+        }
+        return;
+      }
+      if (state.mode === 'loading') return;
+      if (state.mode === 'title') { if (state.readyGameplay) beginRun(); return; }
+      if (state.mode === 'playing') { flap(); return; }
+      if (state.mode === 'crash') { if (state.crashLock <= 0) { resetRun(); state.mode='title'; } return; }
+      if (state.mode === 'leaderboard' || state.mode === 'settings' || state.mode === 'editInitials') return;
+    }
+
+    // ------- Orientation -------
+    function detectOrientationBlock(){
+      state.orientationBlocked = isMobile && window.innerWidth > window.innerHeight;
+    }
+
+    // ------- Update -------
+    function update(dt){
+      state.t += dt; state.titlePulse += dt;
+      state.flash = Math.max(0, state.flash - dt*1.1); state.shake = Math.max(0, state.shake - dt*40);
+      detectOrientationBlock();
+      if (state.orientationBlocked) return;
+
+      // title / menu ambient
+      if (state.mode === 'title' || state.mode === 'leaderboard' || state.mode === 'settings' || state.mode === 'editInitials') {
+        state.bgScroll += dt * 12;
+        state.groundScroll += dt * 20;
+        updateClouds(dt, false);
+      }
+      if (state.mode === 'crash') {
+        state.crashLock = Math.max(0, state.crashLock - dt);
+      }
+
+      bird.frameTimer += dt;
+      const flapRate = state.mode === 'playing' ? 0.085 : 0.13;
+      if (bird.frameTimer > flapRate) { bird.frameTimer = 0; bird.frame = (bird.frame + 1) % 4; }
+
+      if (state.mode === 'title') {
+        bird.y = H * 0.40 + Math.sin(state.t*2.8) * 10;
+        bird.angle = Math.sin(state.t*2.4) * 0.08;
+        updateFeathers(dt); updateParticles(dt); updateShootingStars(dt);
+        return;
+      }
+      if (state.mode === 'leaderboard' || state.mode === 'settings' || state.mode === 'editInitials') {
+        bird.y = H * 0.40 + Math.sin(state.t*2.8) * 10;
+        bird.angle = Math.sin(state.t*2.4) * 0.08;
+        updateFeathers(dt); updateParticles(dt); updateShootingStars(dt);
+        return;
+      }
+      if (state.mode === 'crash') {
+        updateFeathers(dt); updateParticles(dt); updateShootingStars(dt);
+        return;
+      }
+      if (state.mode !== 'playing') { updateFeathers(dt); updateParticles(dt); updateShootingStars(dt); return; }
+
+      updateThemeTransition(dt);
+      const speed = currentSpeed();
+      state.bgScroll += dt * speed * 0.14;
+      state.groundScroll += dt * speed;
+      updateClouds(dt, true);
+      maybeSpawnShootingStar(dt);
+      updateShootingStars(dt);
+
+      bird.vy += H * 2.05 * dt;
+      bird.y += bird.vy * dt;
+      bird.angle = clamp(bird.vy / (H * 0.84), -0.65, 1.12);
+
+      state.spawnTimer += dt;
+      const spawnEvery = currentSpawnInterval();
+      while (state.spawnTimer >= spawnEvery) { state.spawnTimer -= spawnEvery; addPipe(); }
+
+      for (const pipe of state.pipes) {
+        pipe.x -= speed * dt;
+        if (!pipe.scored && pipe.x + pipe.width < bird.x) { pipe.scored = true; state.score += 1; updateHud(); addSmallBurst(bird.x + bird.width*0.18, bird.y, 10, 'rgba(255,245,168,.75)'); }
+        if (collides(pipe)) enterCrash();
+      }
+      state.pipes = state.pipes.filter(p => p.x + p.width > -220);
+
+      const ceiling = bird.height * 0.42;
+      const floor = groundY - bird.height * 0.20 + 15;
+      if (bird.y < ceiling) { bird.y = ceiling; bird.vy = Math.max(0, bird.vy * 0.2); }
+      if (bird.y > floor) { bird.y = floor; bird.vy = 0; enterCrash(); }
+
+      updateFeathers(dt); updateParticles(dt);
+    }
+
+    function updateClouds(dt, playing){
+      for (const c of state.clouds) {
+        const drift = (playing ? 1 : 0.45);
+        c.x -= c.speed * drift * dt * 10;
+        if (c.x < -220) { c.x = W + rand(10,180); c.y = H*(0.08 + c.layer*0.07) + rand(-12,16); c.sprite = Math.floor(rand(0,6)); }
+      }
+    }
+    function updateParticles(dt){
+      for (const p of state.particles) { p.life -= dt; p.x += p.vx*dt; p.y += p.vy*dt; p.vy += H*0.45*dt; p.vx *= 0.99; }
+      state.particles = state.particles.filter(p=>p.life>0);
+    }
+    function updateFeathers(dt){
+      for (const f of state.feathers) { f.life -= dt; f.x += f.vx*dt; f.y += f.vy*dt; f.vy += H*0.55*dt; f.rot += f.vr*dt; f.vx *= 0.992; }
+      state.feathers = state.feathers.filter(f=>f.life>0 && f.y < H+140);
+    }
+    function maybeSpawnShootingStar(dt){
+      if (getThemeForScore(state.score) !== 'night' && state.currentTheme !== 'night') return;
+      if (Math.random() < dt * 0.12 && state.shootingStars.length < 2) {
+        state.shootingStars.push({x: W + rand(40,160), y: rand(20,H*0.26), vx: rand(-180,-140), vy: rand(20,30), life: 1.5});
+      }
+    }
+    function updateShootingStars(dt){
+      for (const s of state.shootingStars) { s.life -= dt; s.x += s.vx*dt; s.y += s.vy*dt; }
+      state.shootingStars = state.shootingStars.filter(s=>s.life>0 && s.x>-220);
+    }
+
+    // ------- Draw helpers -------
+    function drawButton(x,y,w,h,label,small=false, glow=false){
+      ctx.save();
+      ctx.fillStyle = 'rgba(12,20,33,.68)';
+      ctx.strokeStyle = 'rgba(255,255,255,.16)';
+      ctx.lineWidth = 2;
+      roundRect(x,y,w,h,18); ctx.fill(); ctx.stroke();
+      if (glow) { ctx.shadowColor = 'rgba(255,225,130,.35)'; ctx.shadowBlur = 18; }
+      ctx.fillStyle = '#fff0b6'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font = `${small?14:18}px system-ui, sans-serif`; ctx.fillText(label, x+w/2, y+h/2+1);
+      ctx.restore();
+    }
+    function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+    function drawImageFrame(im, frameCount, frameIndex, dx, dy, dw, dh, alpha=1){
+      if (!im || !im.width) return;
+      const {sx,sy,sw,sh} = getFrameRect(im, frameCount, ((frameIndex%frameCount)+frameCount)%frameCount);
+      ctx.save(); ctx.globalAlpha *= alpha; ctx.drawImage(im, sx,sy,sw,sh, dx,dy,dw,dh); ctx.restore();
+    }
+    function drawTiledCover(im, scroll, y, drawH, alpha=1){
+      if (!im || !im.width) return;
+      const scale = drawH / im.height; const tileW = im.width * scale; const offset = ((scroll % tileW) + tileW) % tileW;
+      ctx.save(); ctx.globalAlpha *= alpha;
+      for (let x=-offset - tileW; x < W + tileW; x += tileW) ctx.drawImage(im, 0,0,im.width,im.height, x,y,tileW,drawH);
+      ctx.restore();
+    }
+
+    function drawBackgroundPass(theme, alpha){
+      drawTiledCover(getImg('background', theme), state.bgScroll, 0, H, alpha);
+      drawClouds(theme, alpha);
+      if (theme === 'night') drawStars(alpha);
+    }
+
+    function drawClouds(theme, alpha){
+      const sheet = getImg('cloud_sheet', theme); if (!sheet || !sheet.width) return; const count = 6;
+      ctx.save(); ctx.globalAlpha *= alpha;
+      for (const c of state.clouds) {
+        const cellW = sheet.width / count; const cellH = sheet.height;
+        const dw = cellW * c.scale * (W/420); const dh = cellH * c.scale * (W/420);
+        const frame = c.sprite % count;
+        ctx.globalAlpha = alpha * (0.26 + c.layer*0.17);
+        drawImageFrame(sheet, count, frame, c.x, c.y, dw, dh, alpha * (0.40 + c.layer*0.18));
+      }
+      ctx.restore();
+    }
+    function drawStars(alpha){
+      const twinkleBase = 0.35 + 0.25*Math.sin(state.t*0.9);
+      for (const s of state.stars) {
+        const a = alpha * (0.25 + (0.5+0.5*Math.sin(state.t*3 + s.tw))*0.45);
+        ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = '#fffad8'; ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, Math.PI*2); ctx.fill(); ctx.restore();
+      }
+      const shoot = images.shootingStar;
+      for (const s of state.shootingStars) { if (shoot && shoot.width) { ctx.save(); ctx.globalAlpha = alpha * Math.max(0, s.life); ctx.drawImage(shoot, s.x, s.y, 120, 36); ctx.restore(); } }
+    }
+
+    function drawPipesForTheme(theme, alpha){
+      const baseIm = getImg('pillar_base', theme); const shaftIm = getImg('pillar_column', theme); const bottomSheet = getImg('pillar_broken_bottom_sheet', theme); const topSheet = getImg('pillar_broken_top_sheet', theme);
+      if (!baseIm || !shaftIm || !bottomSheet || !topSheet) return;
+      ctx.save(); ctx.globalAlpha *= alpha;
+      for (const pipe of state.pipes) {
+        const parts = getPipeParts(pipe, theme);
+        // shafts first
+        drawTiledColumn(shaftIm, parts.top.shaft, alpha);
+        drawTiledColumn(shaftIm, parts.bottom.shaft, alpha);
+        // top decorations
+        ctx.drawImage(baseIm, parts.top.base.x, parts.top.base.y, parts.top.base.w, parts.top.base.h);
+        drawImageFrame(topSheet, 3, pipe.topVar, parts.top.broken.x, parts.top.broken.y, parts.top.broken.w, parts.top.broken.h);
+        // bottom decorations
+        drawImageFrame(bottomSheet, 3, pipe.bottomVar, parts.bottom.broken.x, parts.bottom.broken.y, parts.bottom.broken.w, parts.bottom.broken.h);
+        ctx.drawImage(baseIm, parts.bottom.base.x, parts.bottom.base.y, parts.bottom.base.w, parts.bottom.base.h);
+      }
+      ctx.restore();
+    }
+    function drawTiledColumn(shaftIm, rect, alpha){
+      if (!shaftIm || rect.h <= 0) return; const tileH = rect.w * (shaftIm.height / shaftIm.width);
+      ctx.save(); ctx.globalAlpha *= alpha; ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
+      for (let y = rect.y; y < rect.y + rect.h + tileH; y += tileH - 1) ctx.drawImage(shaftIm, rect.x, y, rect.w, tileH);
+      ctx.restore();
+    }
+
+    function drawGround(theme, alpha){ drawTiledCover(getImg('ground', theme), state.groundScroll, groundY, groundH, alpha); }
+
+    function drawBirdPass(theme, alpha){
+      const sheet = getImg('bird_sheet', theme); if (!sheet || !sheet.width) return;
+      ctx.save(); ctx.translate(bird.x, bird.y); ctx.rotate(bird.angle); ctx.globalAlpha *= alpha;
+      ctx.shadowColor = 'rgba(0,0,0,.20)'; ctx.shadowBlur = 16; ctx.shadowOffsetY = 8;
+      drawImageFrame(sheet, 4, bird.frame, -bird.width/2, -bird.height/2, bird.width, bird.height, alpha);
+      ctx.restore();
+    }
+
+    function drawParticles(){
+      for (const p of state.particles) { ctx.save(); ctx.globalAlpha = clamp(p.life/p.maxLife,0,1); ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+    }
+    function drawFeathers(){
+      const passes = themePasses();
+      for (const f of state.feathers) {
+        for (const pass of passes) {
+          const sheet = getImg('feather_sheet', pass.theme); if (!sheet || !sheet.width) continue;
+          const a = clamp(f.life/f.maxLife, 0, 1) * pass.alpha;
+          ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(f.rot); ctx.globalAlpha = a;
+          drawImageFrame(sheet, 6, f.frame, -f.size/2, -f.size/2, f.size, f.size, a);
+          ctx.restore();
+        }
+      }
+    }
+
+    function drawGlassPanel(x,y,w,h,title,lines=[]){
+      ctx.save();
+      if (images.ui_panel && images.ui_panel.width) ctx.drawImage(images.ui_panel, x, y, w, h);
+      else { ctx.fillStyle = 'rgba(10,16,28,.66)'; roundRect(x,y,w,h,24); ctx.fill(); }
+      ctx.textAlign='center'; ctx.fillStyle='#ffffff'; ctx.font='700 34px system-ui, sans-serif'; ctx.fillText(title, x+w/2, y+52);
+      ctx.font='16px system-ui, sans-serif'; ctx.fillStyle='rgba(255,255,255,.88)';
+      lines.forEach((line, idx)=>ctx.fillText(line, x+w/2, y+96 + idx*26));
+      ctx.restore();
+    }
+
+    function drawTitleOverlay(){
+      resetButtons();
+      const logo = images.titleLogo; const logoW = Math.min(W*0.84, 370*(W/420)); const logoH = logoW * (logo.height/logo.width);
+      const bounceY = Math.sin(state.titlePulse*2.2) * 7;
+      if (logo && logo.width) {
+        ctx.save(); ctx.shadowColor='rgba(255,230,140,.28)'; ctx.shadowBlur = 34; ctx.drawImage(logo, W/2-logoW/2, H*0.14 + bounceY, logoW, logoH); ctx.restore();
+      }
+      // hero bird
+      const birdScale = 1.2;
+      const bx = W*0.33, by = H*0.34 + Math.sin(state.t*2.4)*8;
+      const birdW = bird.width * birdScale, birdH = bird.height * birdScale;
+      for (const pass of themePasses()) drawBirdPass(pass.theme, pass.alpha);
+      // draw extra hero bird without altering main bird
+      const sheet = getImg('bird_sheet', 'day');
+      if (sheet && sheet.width) {
+        ctx.save(); ctx.translate(bx, by); ctx.rotate(Math.sin(state.t*2.4)*0.08); ctx.shadowColor='rgba(0,0,0,.22)'; ctx.shadowBlur=18; ctx.shadowOffsetY=9;
+        drawImageFrame(sheet, 4, bird.frame, -birdW/2, -birdH/2, birdW, birdH, 1); ctx.restore();
+      }
+      ctx.save(); ctx.textAlign='center'; ctx.fillStyle='rgba(255,255,255,.92)'; ctx.font='600 20px system-ui, sans-serif'; ctx.fillText(state.readyGameplay ? 'Tap to start' : 'Preparing gameplay...', W/2, H*0.58);
+      ctx.font='15px system-ui, sans-serif'; ctx.fillStyle='rgba(255,240,185,.95)'; ctx.fillText('Pass through the ancient columns.', W/2, H*0.62);
+      ctx.restore();
+      const btnSize = 58; const y = H - Math.max(84, groundH + 68);
+      registerButton('title-leaderboard', W/2 - 74, y, btnSize, btnSize);
+      registerButton('title-settings', W/2 + 16, y, btnSize, btnSize);
+      drawIconButton(images.ui_leaderboard, W/2 - 74, y, btnSize, btnSize);
+      drawIconButton(images.ui_settings, W/2 + 16, y, btnSize, btnSize);
+      registerButton('title-start', 0, 0, W, H);
+    }
+    function drawIconButton(img, x, y, w, h){
+      ctx.save(); ctx.fillStyle='rgba(12,20,33,.60)'; roundRect(x,y,w,h,18); ctx.fill(); ctx.strokeStyle='rgba(255,255,255,.14)'; ctx.stroke();
+      if (img && img.width) ctx.drawImage(img, x+8, y+8, w-16, h-16); ctx.restore();
+    }
+
+    function drawCrashOverlay(){
+      resetButtons();
+      const crash = images.crashedText;
+      const cw = Math.min(W*0.82, 330*(W/420)); const ch = crash ? cw*(crash.height/crash.width) : 90;
+      const x = W/2-cw/2; const y = H*0.30;
+      if (crash && crash.width) { ctx.save(); ctx.shadowColor='rgba(255,120,80,.26)'; ctx.shadowBlur=30; ctx.drawImage(crash, x, y, cw, ch); ctx.restore(); }
+      ctx.save(); ctx.textAlign='center'; ctx.fillStyle='rgba(255,255,255,.92)'; ctx.font='16px system-ui, sans-serif';
+      if (state.crashLock > 0) ctx.fillText('Hold on...', W/2, y+ch+28); else ctx.fillText('Tap anywhere to play again', W/2, y+ch+28);
+      ctx.restore();
+      if (state.crashLock <= 0) {
+        const btnSize = 56; const by = H - Math.max(84, groundH + 68);
+        registerButton('open-leaderboard', W/2 - 74, by, btnSize, btnSize);
+        registerButton('open-settings', W/2 + 18, by, btnSize, btnSize);
+        drawIconButton(images.ui_leaderboard, W/2 - 74, by, btnSize, btnSize);
+        drawIconButton(images.ui_settings, W/2 + 18, by, btnSize, btnSize);
+        registerButton('restart-after-crash', 0, 0, W, H);
+      }
+    }
+
+    function drawLeaderboard(){
+      resetButtons();
+      const pw = Math.min(W*0.86, 360*(W/420)), ph = Math.min(H*0.66, 420*(H/740)); const px = W/2-pw/2, py = H*0.18;
+      drawGlassPanel(px,py,pw,ph,'Leaderboard',['Top local scores']);
+      ctx.save(); ctx.textAlign='left'; ctx.font='600 18px system-ui, sans-serif';
+      const rows = state.leaderboard.length ? state.leaderboard : [{initials:'---', score:0}];
+      rows.slice(0,10).forEach((row, i) => {
+        const y = py + 120 + i*24; ctx.fillStyle = i<3 ? '#ffe9a0' : 'rgba(255,255,255,.92)'; ctx.fillText(`${i+1}.`, px+36, y); ctx.fillText((row.initials||'---').padEnd(3,' '), px+78, y); ctx.textAlign='right'; ctx.fillText(String(row.score), px+pw-40, y); ctx.textAlign='left';
+      });
+      ctx.font='16px system-ui, sans-serif'; ctx.fillStyle='rgba(255,255,255,.82)'; ctx.fillText(`Initials: ${state.initials}`, px+36, py+ph-92); ctx.restore();
+      registerButton('leaderboard-edit', px+28, py+ph-70, 140, 42); drawButton(px+28, py+ph-70, 140, 42, 'Change initials', true);
+      registerButton('leaderboard-close', px+pw-128, py+ph-70, 100, 42); drawButton(px+pw-128, py+ph-70, 100, 42, 'Close', true);
+      registerButton('back-title', 0, 0, 0, 0);
+    }
+
+    function drawSettings(){
+      resetButtons();
+      const pw = Math.min(W*0.86, 360*(W/420)), ph = Math.min(H*0.54, 350*(H/740)); const px = W/2-pw/2, py = H*0.22;
+      drawGlassPanel(px,py,pw,ph,'Settings',[]);
+      ctx.save(); ctx.textAlign='left'; ctx.font='16px system-ui, sans-serif'; ctx.fillStyle='rgba(255,255,255,.92)';
+      ctx.fillText(`Initials: ${state.initials}`, px+34, py+118); ctx.restore();
+      registerButton('settings-music', px+28, py+78, pw-56, 42); drawButton(px+28, py+78, pw-56, 42, `Music: ${state.settings.music ? 'On' : 'Off'}`, true);
+      registerButton('settings-sfx', px+28, py+130, pw-56, 42); drawButton(px+28, py+130, pw-56, 42, `SFX: ${state.settings.sfx ? 'On' : 'Off'}`, true);
+      registerButton('settings-initials', px+28, py+182, pw-56, 42); drawButton(px+28, py+182, pw-56, 42, 'Change initials', true);
+      registerButton('settings-close', px+pw/2-50, py+ph-62, 100, 42); drawButton(px+pw/2-50, py+ph-62, 100, 42, 'Close', true);
+    }
+
+    function drawInitialsEdit(){
+      resetButtons();
+      const pw = Math.min(W*0.80, 330), ph = 240; const px = W/2-pw/2, py = H*0.28;
+      drawGlassPanel(px,py,pw,ph,'Enter initials',['Tap field and type up to 3 characters']);
+      const bx = px + pw/2 - 72, by = py + 100;
+      ctx.save(); ctx.fillStyle='rgba(255,255,255,.10)'; roundRect(bx, by, 144, 56, 18); ctx.fill(); ctx.strokeStyle='rgba(255,255,255,.16)'; ctx.stroke();
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='700 30px system-ui, sans-serif'; ctx.fillStyle='#fff0b8'; ctx.fillText((state.initialsDraft || state.initials || 'AAA').padEnd(3,'_'), bx+72, by+30); ctx.restore();
+      registerButton('edit-save', px+36, py+ph-58, 104, 42); drawButton(px+36, py+ph-58, 104, 42, 'Save', true);
+      registerButton('edit-cancel', px+pw-140, py+ph-58, 104, 42); drawButton(px+pw-140, py+ph-58, 104, 42, 'Cancel', true);
+      // focus field area tap to input
+      registerButton('edit-focus', bx, by, 144, 56);
+      // special case focus button handling by canvas tap via listener below? just focus on any nonbutton while editing on tap maybe.
+    }
+
+    function drawRotateBlock(){
+      resetButtons();
+      ctx.fillStyle = 'rgba(10,16,28,.82)'; ctx.fillRect(0,0,W,H);
+      const im = images.rotatePhone; if (im && im.width) { const w = Math.min(W*0.64, 260); const h = w*(im.height/im.width); ctx.drawImage(im, W/2-w/2, H*0.22, w, h); }
+      ctx.save(); ctx.textAlign='center'; ctx.fillStyle='#ffffff'; ctx.font='600 22px system-ui, sans-serif'; ctx.fillText('Please rotate back to portrait', W/2, H*0.78); ctx.restore();
+    }
+
+    function drawOverlayEffects(){ if (state.flash > 0) { ctx.save(); ctx.fillStyle = `rgba(255,255,255,${state.flash})`; ctx.fillRect(0,0,W,H); ctx.restore(); } }
+
+    function draw(){
+      ctx.clearRect(0,0,W,H);
+      if (state.shake > 0) { ctx.save(); ctx.translate(rand(-state.shake,state.shake), rand(-state.shake,state.shake)); }
+      for (const pass of themePasses()) drawBackgroundPass(pass.theme, pass.alpha);
+      // gameplay scene / title background scene
+      if (state.mode === 'playing' || state.mode === 'crash') {
+        for (const pass of themePasses()) drawPipesForTheme(pass.theme, pass.alpha);
+      }
+      for (const pass of themePasses()) drawGround(pass.theme, pass.alpha);
+      for (const pass of themePasses()) if (!(state.mode === 'title' || state.mode === 'leaderboard' || state.mode === 'settings' || state.mode === 'editInitials')) drawBirdPass(pass.theme, pass.alpha);
+      drawParticles(); drawFeathers(); drawOverlayEffects();
+      if (state.shake > 0) ctx.restore();
+
+      if (state.mode === 'title') drawTitleOverlay();
+      if (state.mode === 'crash') drawCrashOverlay();
+      if (state.mode === 'leaderboard') drawLeaderboard();
+      if (state.mode === 'settings') drawSettings();
+      if (state.mode === 'editInitials') drawInitialsEdit();
+      if (state.orientationBlocked) drawRotateBlock();
+    }
+
+    function loop(ts){
+      const dt = Math.min(0.033, ((ts - state.lastTs)/1000) || 0); state.lastTs = ts;
+      update(dt); draw(); requestAnimationFrame(loop);
+    }
+
+    // ------- loading -------
+    async function boot(){
+      resize(); updateHud(); initClouds(); resetRun(true);
+      await loadGroup(IMAGE_PATHS.essential);
+      state.readyEssential = true; state.mode = 'title'; loadingEl.textContent = 'Loading...';
+      // keep title visible while gameplay loads
+      loadGroup(IMAGE_PATHS.gameplay).then(() => { state.readyGameplay = true; loadingEl.style.display = 'none'; }).catch(() => { state.readyGameplay = true; loadingEl.style.display = 'none'; });
       requestAnimationFrame(loop);
-    })();
+    }
+
+    // Events
+    function canvasCoords(evt){ const rect = canvas.getBoundingClientRect(); const cx = (evt.clientX - rect.left) * (canvas.width / rect.width) / DPR; const cy = (evt.clientY - rect.top) * (canvas.height / rect.height) / DPR; return {x:cx,y:cy}; }
+    ['pointerdown','mousedown','touchstart'].forEach(type => {
+      canvas.addEventListener(type, (evt) => {
+        evt.preventDefault();
+        let point;
+        if (evt.touches && evt.touches[0]) point = canvasCoords(evt.touches[0]); else point = canvasCoords(evt);
+        // special initials focus
+        if (state.mode === 'editInitials') {
+          const px = W/2-Math.min(W*0.80, 330)/2, py = H*0.28, pw = Math.min(W*0.80,330);
+          const bx = px + pw/2 - 72, by = py + 100;
+          if (point.x>=bx && point.x<=bx+144 && point.y>=by && point.y<=by+56) { unlockAudio(); initialsInput.focus(); initialsInput.select(); return; }
+        }
+        handleTap(point.x, point.y);
+      }, {passive:false});
+    });
+    window.addEventListener('resize', resize);
+    window.addEventListener('orientationchange', ()=>setTimeout(resize, 60));
+    window.addEventListener('keydown', (e)=>{
+      if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); unlockAudio(); if (state.mode === 'playing') flap(); else if (state.mode === 'title' && state.readyGameplay) beginRun(); else if (state.mode === 'crash' && state.crashLock <= 0) { resetRun(); state.mode='title'; } }
+      if (e.key === 'Escape' && (state.mode === 'leaderboard' || state.mode === 'settings' || state.mode === 'editInitials')) { closePanels(); }
+    }, {passive:false});
+
+    if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); }); }
+    boot();
+    updateMusic();
+  })();
   </script>
 </body>
 </html>
