@@ -40,9 +40,6 @@
       width: 100vw;
       height: 100vh;
       height: 100dvh;
-      display: block;
-      position: fixed;
-      inset: 0;
     }
 
     .app {
@@ -51,18 +48,16 @@
       width: 100vw;
       height: 100vh;
       height: 100dvh;
-      overflow: hidden;
-      display: block;
       padding: 0;
       margin: 0;
+      overflow: hidden;
       background: #87cfff;
     }
 
     .stage {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
@@ -71,6 +66,10 @@
     }
 
     canvas {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       display: block;
       border-radius: 0;
       box-shadow: none;
@@ -85,7 +84,7 @@
 
     .chips {
       position: absolute;
-      top: calc(14px * var(--ui-scale));
+      top: calc(env(safe-area-inset-top, 0px) + 10px * var(--ui-scale));
       left: calc(14px * var(--ui-scale));
       right: calc(14px * var(--ui-scale));
       display: flex;
