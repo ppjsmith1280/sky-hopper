@@ -1,6 +1,6 @@
 {
-  "name": "Flap Tap!",
-  "short_name": "Flap Tap!",
+  "name": "Sky Hopper",
+  "short_name": "Sky Hopper",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#2c80e2",
