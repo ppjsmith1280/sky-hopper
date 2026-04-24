@@ -1,0 +1,885 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Sky Hopper</title>
+  <meta name="theme-color" content="#2c80e2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Sky Hopper">
+  <style>
+    :root {
+      --glass: rgba(12, 20, 33, 0.38);
+      --glass-strong: rgba(10, 16, 28, 0.62);
+      --text: #ffffff;
+      --muted: rgba(255,255,255,.85);
+      --accent: #ffe48a;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: radial-gradient(circle at top, #5ac6ff 0%, #2c80e2 38%, #1b335d 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+    }
+
+    .app {
+      width: 100%;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 12px;
+    }
+
+    .stage {
+      position: relative;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: none;
+      --ui-scale: 1;
+    }
+
+    canvas {
+      display: block;
+      border-radius: 26px;
+      box-shadow: 0 26px 90px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.24);
+      background: #87cfff;
+    }
+
+    .hud {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .chips {
+      position: absolute;
+      top: calc(14px * var(--ui-scale));
+      left: calc(14px * var(--ui-scale));
+      right: calc(14px * var(--ui-scale));
+      display: flex;
+      justify-content: space-between;
+      gap: calc(10px * var(--ui-scale));
+    }
+
+    .chip {
+      padding: calc(10px * var(--ui-scale)) calc(14px * var(--ui-scale));
+      border-radius: calc(18px * var(--ui-scale));
+      background: var(--glass);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
+      min-width: calc(74px * var(--ui-scale));
+    }
+
+    .chip .label {
+      display: block;
+      font-size: calc(11px * var(--ui-scale));
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.7);
+      margin-bottom: calc(2px * var(--ui-scale));
+    }
+
+    .chip .value {
+      display: block;
+      width: 100%;
+      text-align: right;
+      font-size: calc(28px * var(--ui-scale));
+      font-weight: 800;
+      line-height: 1;
+      color: #fff8d5;
+      text-shadow: 0 2px 10px rgba(0,0,0,.18);
+    }
+
+    .panel {
+      position: absolute;
+      left: 50%;
+      top: 52%;
+      transform: translate(-50%, -50%);
+      width: min(86%, calc(360px * var(--ui-scale)));
+      padding: calc(20px * var(--ui-scale)) calc(18px * var(--ui-scale)) calc(18px * var(--ui-scale));
+      border-radius: calc(24px * var(--ui-scale));
+      background: rgba(10, 16, 28, 0.62);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 18px 46px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.16);
+      text-align: center;
+    }
+
+    .panel.hidden { display: none; }
+
+    .panel h1 {
+      margin: 0 0 calc(8px * var(--ui-scale));
+      font-size: calc(38px * var(--ui-scale));
+      line-height: 1;
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: calc(15px * var(--ui-scale));
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    .action {
+      margin: calc(14px * var(--ui-scale)) 0 calc(8px * var(--ui-scale));
+      font-weight: 800;
+      font-size: calc(15px * var(--ui-scale));
+      color: var(--accent);
+    }
+
+    .small {
+      margin: 0;
+      font-size: calc(13px * var(--ui-scale));
+      color: rgba(255,255,255,.74);
+    }
+
+    .tap-zone {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      background: transparent;
+    }
+
+    .footer-note {
+      position: absolute;
+      bottom: max(18px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255,255,255,.70);
+      text-shadow: 0 2px 8px rgba(0,0,0,.35);
+      pointer-events: none;
+    }
+
+    @media (max-height: 740px) {
+      .footer-note { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="stage" id="stage">
+      <canvas id="game" width="420" height="740" aria-label="Sky Hopper game"></canvas>
+
+      <div class="hud">
+        <div class="chips">
+          <div class="chip">
+            <span class="label">Score</span>
+            <span class="value" id="score">0</span>
+          </div>
+          <div class="chip">
+            <span class="label">Best</span>
+            <span class="value" id="best">0</span>
+          </div>
+        </div>
+
+        <div class="panel" id="panel">
+          <h1 id="panelTitle">Sky Hopper</h1>
+          <p class="subtitle" id="panelSubtitle">An original tap to fly arcade game</p>
+          <p class="action" id="panelAction">Tap, click, or press Space to start</p>
+          <p class="small" id="panelSmall">Pass through the ancient columns.</p>
+        </div>
+      </div>
+
+      <div class="tap-zone" id="tapZone" aria-hidden="true"></div>
+    </div>
+
+    <div class="footer-note">Tap or press Space to flap</div>
+  </div>
+
+  <script>
+    (() => {
+      const ASSETS = {
+        background: "assets/background.png",
+        bird: "assets/bird_sheet.png",
+        ground: "assets/ground.png",
+        pillarCap: "assets/pillar_cap.png",
+        pillarBase: "assets/pillar_base.png",
+        pillarColumn: "assets/pillar_column.png"
+      };
+
+      const canvas = document.getElementById("game");
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      const stageEl = document.getElementById("stage");
+      const tapZone = document.getElementById("tapZone");
+
+      const ui = {
+        score: document.getElementById("score"),
+        best: document.getElementById("best"),
+        panel: document.getElementById("panel"),
+        title: document.getElementById("panelTitle"),
+        subtitle: document.getElementById("panelSubtitle"),
+        action: document.getElementById("panelAction"),
+        small: document.getElementById("panelSmall")
+      };
+
+      const DPR = Math.min(window.devicePixelRatio || 1, 2);
+      const BASE_WIDTH = 420;
+
+      const img = {
+        background: new Image(),
+        bird: new Image(),
+        ground: new Image(),
+        pillarCap: new Image(),
+        pillarBase: new Image(),
+        pillarColumn: new Image()
+      };
+
+      img.background.src = ASSETS.background;
+      img.bird.src = ASSETS.bird;
+      img.ground.src = ASSETS.ground;
+      img.pillarCap.src = ASSETS.pillarCap;
+      img.pillarBase.src = ASSETS.pillarBase;
+      img.pillarColumn.src = ASSETS.pillarColumn;
+
+      const BOX = {
+        birdSheet: { x: 64, y: 66, w: 2381, h: 459 },
+        birdTrimX: 30,
+        birdTrimY: 10,
+        groundCrop: { x: 0, y: 218, w: 2508, h: 249 }
+      };
+
+      const PIPE_CONFIG = {
+        baseShift: 25,
+        bottomShift: 5,
+        topOffset: -5,
+        minShaftH: 45
+      };
+
+      const DIFFICULTY = {
+        baseGapRatio: 0.235,
+        maxGapPx: 205,
+        minGapPx: 142,
+        gapTightenPerPoint: 1.3,
+        baseSpawnInterval: 1.45,
+        minSpawnInterval: 0.88,
+        spawnTightenPerPoint: 0.02,
+        speedIncreasePerPoint: 0.022,
+        maxSpeedBoost: 0.80
+      };
+
+      const state = {
+        mode: "loading",
+        t: 0,
+        bgScroll: 0,
+        groundScroll: 0,
+        spawnTimer: 0,
+        score: 0,
+        best: Number(localStorage.getItem("sky_hopper_best") || 0),
+        flash: 0,
+        shake: 0,
+        pipes: [],
+        particles: [],
+        worldSpeed: 238
+      };
+
+      const bird = {
+        x: 0,
+        y: 0,
+        vy: 0,
+        width: 74,
+        height: 56,
+        frame: 0,
+        frameTimer: 0,
+        angle: 0
+      };
+
+      let W = 420;
+      let H = 740;
+      let groundH = 86;
+      let groundY = H - groundH;
+
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+      const rand = (min, max) => Math.random() * (max - min) + min;
+
+      function currentGap() {
+        const startGap = clamp(H * DIFFICULTY.baseGapRatio, DIFFICULTY.minGapPx, DIFFICULTY.maxGapPx);
+        return clamp(
+          startGap - state.score * DIFFICULTY.gapTightenPerPoint,
+          DIFFICULTY.minGapPx,
+          DIFFICULTY.maxGapPx
+        );
+      }
+
+      function currentSpawnInterval() {
+        return Math.max(
+          DIFFICULTY.minSpawnInterval,
+          DIFFICULTY.baseSpawnInterval - state.score * DIFFICULTY.spawnTightenPerPoint
+        );
+      }
+
+      function currentSpeed() {
+        return state.worldSpeed * (
+          1 + Math.min(DIFFICULTY.maxSpeedBoost, state.score * DIFFICULTY.speedIncreasePerPoint)
+        );
+      }
+
+      function setPanel(title, subtitle, action, small = "") {
+        ui.title.textContent = title;
+        ui.subtitle.textContent = subtitle;
+        ui.action.textContent = action;
+        ui.small.textContent = small;
+        ui.panel.classList.remove("hidden");
+      }
+
+      function hidePanel() {
+        ui.panel.classList.add("hidden");
+      }
+
+      function updateHud() {
+        ui.score.textContent = String(state.score);
+        ui.best.textContent = String(state.best);
+      }
+
+      function resize() {
+        const ratio = 9 / 16;
+        const maxW = Math.min(window.innerWidth - 24, 500);
+        let cssW = maxW;
+        let cssH = cssW / ratio;
+
+        if (cssH > window.innerHeight - 24) {
+          cssH = window.innerHeight - 24;
+          cssW = cssH * ratio;
+        }
+
+        canvas.style.width = cssW + "px";
+        canvas.style.height = cssH + "px";
+        canvas.width = Math.round(cssW * DPR);
+        canvas.height = Math.round(cssH * DPR);
+
+        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        W = cssW;
+        H = cssH;
+        groundH = Math.round(H * 0.115);
+        groundY = H - groundH + 1;
+
+        stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
+        resetBird();
+      }
+
+      function resetBird() {
+        bird.x = Math.round(W * 0.24);
+        bird.y = Math.round(H * 0.42);
+        bird.vy = 0;
+        bird.angle = 0;
+        bird.frame = 0;
+        bird.frameTimer = 0;
+        bird.width = W * 0.105;
+        bird.height = bird.width * 0.76;
+      }
+
+      function startFresh() {
+        state.mode = "ready";
+        state.t = 0;
+        state.bgScroll = 0;
+        state.groundScroll = 0;
+        state.spawnTimer = 0;
+        state.score = 0;
+        state.flash = 0;
+        state.shake = 0;
+        state.pipes = [];
+        state.particles = [];
+        resetBird();
+        updateHud();
+        setPanel("Sky Hopper", "An original tap to fly arcade game", "Tap, click, or press Space to start", "Pass through the ancient columns.");
+      }
+
+      function beginRun() {
+        state.mode = "playing";
+        hidePanel();
+        flap();
+      }
+
+      function gameOver() {
+        if (state.mode === "gameover") return;
+        state.mode = "gameover";
+        state.flash = 0.28;
+        state.shake = 10;
+
+        if (state.score > state.best) {
+          state.best = state.score;
+          localStorage.setItem("sky_hopper_best", String(state.best));
+        }
+
+        updateHud();
+        setPanel("Crashed!", `Score: ${state.score} • Best: ${state.best}`, "Tap, click, or press Space to play again", "Tip: short rhythmic taps work best.");
+        burst(bird.x, bird.y, 16, "#fff4c7");
+      }
+
+      function flap() {
+        bird.vy = -Math.max(325, H * 0.6);
+        bird.angle = -0.42;
+        burst(bird.x - 8, bird.y + 6, 4, "rgba(255,255,255,.42)", true);
+      }
+
+      function getPipeMetrics(width) {
+        const capH = width * (img.pillarCap.naturalHeight / img.pillarCap.naturalWidth);
+        const baseH = width * (img.pillarBase.naturalHeight / img.pillarBase.naturalWidth);
+
+        const widest = Math.max(img.pillarCap.naturalWidth, img.pillarBase.naturalWidth);
+        const shaftRatio = img.pillarColumn.naturalWidth / widest;
+        const shaftW = width * shaftRatio;
+
+        const capOverlapTop = Math.round(capH * 0.50);
+        const capOverlapBottom = Math.round(capH * 0.40);
+        const baseOverlap = Math.round(baseH * 0.30);
+
+        return { capH, baseH, shaftW, capOverlapTop, capOverlapBottom, baseOverlap };
+      }
+
+      function addPipe() {
+        const gap = currentGap();
+        const width = clamp(W * 0.148, 56, 72);
+        const x = W + width + 20;
+
+        const m = getPipeMetrics(width);
+        const lowerCenterFromTop =
+          gap / 2 +
+          (PIPE_CONFIG.minShaftH + m.capOverlapTop + m.baseH - m.baseOverlap - 4);
+
+        const upperCenterFromBottom =
+          groundY +
+          PIPE_CONFIG.baseShift +
+          PIPE_CONFIG.bottomShift -
+          m.baseOverlap -
+          4 -
+          m.capH +
+          m.capOverlapBottom -
+          PIPE_CONFIG.minShaftH -
+          gap / 2;
+
+        const ceilingMargin = H * 0.08 + gap / 2;
+        const floorMargin = H - (groundH + H * 0.05) - gap / 2;
+
+        let low = Math.max(ceilingMargin, lowerCenterFromTop);
+        let high = Math.min(floorMargin, upperCenterFromBottom);
+
+        if (low > high) {
+          low = Math.max(ceilingMargin, gap / 2 + 90);
+          high = Math.min(floorMargin, groundY - groundH - gap / 2 - 90);
+        }
+
+        const center = rand(low, high);
+
+        state.pipes.push({
+          x,
+          width,
+          topEnd: center - gap / 2,
+          bottomStart: center + gap / 2,
+          scored: false
+        });
+      }
+
+      function burst(x, y, count, color, soft = false) {
+        for (let i = 0; i < count; i++) {
+          state.particles.push({
+            x,
+            y,
+            vx: rand(-120, 120) + (soft ? -25 : 0),
+            vy: rand(-150, 40),
+            life: rand(0.3, 0.8),
+            maxLife: 1,
+            size: rand(soft ? 2 : 3, soft ? 5 : 8),
+            color
+          });
+        }
+      }
+
+      function scorePipe() {
+        state.score += 1;
+        updateHud();
+        state.flash = 0.05;
+        burst(bird.x + bird.width * 0.18, bird.y - bird.height * 0.05, 10, "rgba(255,245,168,.75)", true);
+      }
+
+      function updateParticles(dt) {
+        for (const p of state.particles) {
+          p.life -= dt;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vy += H * 0.45 * dt;
+          p.vx *= 0.99;
+        }
+        state.particles = state.particles.filter(p => p.life > 0);
+      }
+
+      function getPipeParts(pipe) {
+        const m = getPipeMetrics(pipe.width);
+        const shaftX = pipe.x + (pipe.width - m.shaftW) / 2;
+
+        const bottomCapY = pipe.bottomStart + 4 + PIPE_CONFIG.bottomShift;
+        const bottomBaseY = groundY - m.baseH + PIPE_CONFIG.baseShift + PIPE_CONFIG.bottomShift;
+        const bottomShaftY = bottomCapY + m.capH - m.capOverlapBottom;
+        const bottomShaftEnd = bottomBaseY + m.baseH - m.baseOverlap;
+        const bottomShaftH = Math.max(PIPE_CONFIG.minShaftH, bottomShaftEnd - bottomShaftY);
+
+        const topBaseY = PIPE_CONFIG.topOffset;
+        const topCapY = pipe.topEnd - m.capH + 4 + PIPE_CONFIG.topOffset;
+        const topShaftY = topBaseY + m.baseH - m.baseOverlap;
+        const topShaftEnd = topCapY + m.capH - m.capOverlapTop;
+        const topShaftH = Math.max(PIPE_CONFIG.minShaftH, topShaftEnd - topShaftY);
+
+        return {
+          top: {
+            base: { x: pipe.x, y: topBaseY, w: pipe.width, h: m.baseH },
+            shaft: { x: shaftX, y: topShaftY, w: m.shaftW, h: topShaftH },
+            cap: { x: pipe.x, y: topCapY, w: pipe.width, h: m.capH }
+          },
+          bottom: {
+            cap: { x: pipe.x, y: bottomCapY, w: pipe.width, h: m.capH },
+            shaft: { x: shaftX, y: bottomShaftY, w: m.shaftW, h: bottomShaftH },
+            base: { x: pipe.x, y: bottomBaseY, w: pipe.width, h: m.baseH }
+          }
+        };
+      }
+
+      function hitRect(ax, ay, aw, ah, bx, by, bw, bh) {
+        return !(ax + aw < bx || ax > bx + bw || ay + ah < by || ay > by + bh);
+      }
+
+      function collides(pipe) {
+        const bx = bird.x - bird.width * 0.24;
+        const by = bird.y - bird.height * 0.24;
+        const bw = bird.width * 0.48;
+        const bh = bird.height * 0.48;
+
+        const parts = getPipeParts(pipe);
+        const rects = [
+          parts.top.base, parts.top.shaft, parts.top.cap,
+          parts.bottom.cap, parts.bottom.shaft, parts.bottom.base
+        ];
+
+        return rects.some(r => r.h > 0 && hitRect(bx, by, bw, bh, r.x, r.y, r.w, r.h));
+      }
+
+      function input() {
+        if (state.mode === "loading") return;
+        if (state.mode === "ready") return beginRun();
+        if (state.mode === "playing") return flap();
+        if (state.mode === "gameover") return startFresh();
+      }
+
+      function update(dt) {
+        state.t += dt;
+        state.flash = Math.max(0, state.flash - dt * 1.2);
+        state.shake = Math.max(0, state.shake - dt * 40);
+
+        bird.frameTimer += dt;
+        const flapRate = state.mode === "playing" ? 0.085 : 0.13;
+        if (bird.frameTimer > flapRate) {
+          bird.frameTimer = 0;
+          bird.frame = (bird.frame + 1) % 4;
+        }
+
+        if (state.mode === "ready") {
+          bird.y = H * 0.42 + Math.sin(state.t * 3.2) * 12;
+          bird.angle = Math.sin(state.t * 3.2) * 0.08;
+          updateParticles(dt);
+          return;
+        }
+
+        if (state.mode === "gameover") {
+          updateParticles(dt);
+          return;
+        }
+
+        if (state.mode !== "playing") {
+          updateParticles(dt);
+          return;
+        }
+
+        const speed = currentSpeed();
+        state.bgScroll += dt * speed * 0.16;
+        state.groundScroll += dt * speed;
+
+        bird.vy += H * 2.05 * dt;
+        bird.y += bird.vy * dt;
+        bird.angle = clamp(bird.vy / (H * 0.8), -0.65, 1.12);
+
+        state.spawnTimer += dt;
+        const spawnEvery = currentSpawnInterval();
+        while (state.spawnTimer >= spawnEvery) {
+          state.spawnTimer -= spawnEvery;
+          addPipe();
+        }
+
+        for (const pipe of state.pipes) {
+          pipe.x -= speed * dt;
+
+          if (!pipe.scored && pipe.x + pipe.width < bird.x) {
+            pipe.scored = true;
+            scorePipe();
+          }
+
+          if (collides(pipe)) {
+            gameOver();
+          }
+        }
+
+        state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -160);
+
+        const ceiling = bird.height * 0.42;
+        const floor = groundY - bird.height * 0.26 + 15;
+
+        if (bird.y < ceiling) {
+          bird.y = ceiling;
+          bird.vy = Math.max(0, bird.vy * 0.2);
+        }
+
+        if (bird.y > floor) {
+          bird.y = floor;
+          bird.vy = 0;
+          gameOver();
+        }
+
+        updateParticles(dt);
+      }
+
+      function drawRepeatingCrop(image, sx, sy, sw, sh, scroll, y, drawH, overlap = 0) {
+        const scale = drawH / sh;
+        const tileW = sw * scale;
+        const offset = ((scroll % tileW) + tileW) % tileW;
+
+        for (let x = -offset - tileW; x < W + tileW; x += (tileW - overlap)) {
+          ctx.drawImage(image, sx, sy, sw, sh, x, y, tileW, drawH);
+        }
+      }
+
+      function drawRepeatingImage(image, scroll, y, drawH, cropRight = 0, overlap = 0) {
+        const sw = image.width - cropRight;
+        const sh = image.height;
+        const scale = drawH / sh;
+        const tileW = sw * scale;
+        const offset = ((scroll % tileW) + tileW) % tileW;
+
+        for (let x = -offset - tileW; x < W + tileW; x += (tileW - overlap)) {
+          ctx.drawImage(image, 0, 0, sw, sh, x, y, tileW, drawH);
+        }
+      }
+
+      function drawBackground() {
+        drawRepeatingImage(
+          img.background,
+          state.bgScroll,
+          0,
+          H,
+          1,
+          1
+        );
+
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0, "rgba(255,255,255,0.00)");
+        grad.addColorStop(1, "rgba(255,214,120,0.10)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+      }
+
+      function drawFlippedImage(image, rect) {
+        ctx.save();
+        ctx.translate(rect.x, rect.y + rect.h);
+        ctx.scale(1, -1);
+        ctx.drawImage(image, 0, 0, image.naturalWidth, image.naturalHeight, 0, 0, rect.w, rect.h);
+        ctx.restore();
+      }
+
+      function drawTiledColumn(rect, flipY = false) {
+        if (rect.h <= 0) return;
+
+        const tileH = rect.w * (img.pillarColumn.naturalHeight / img.pillarColumn.naturalWidth);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rect.x, rect.y, rect.w, rect.h);
+        ctx.clip();
+
+        if (flipY) {
+          ctx.translate(0, rect.y + rect.h);
+          ctx.scale(1, -1);
+          let y = 0;
+          while (y < rect.h + tileH) {
+            ctx.drawImage(img.pillarColumn, rect.x, y, rect.w, tileH);
+            y += tileH - 1;
+          }
+        } else {
+          let y = rect.y;
+          while (y < rect.y + rect.h + tileH) {
+            ctx.drawImage(img.pillarColumn, rect.x, y, rect.w, tileH);
+            y += tileH - 1;
+          }
+        }
+
+        ctx.restore();
+      }
+
+      function drawPipeShafts() {
+        for (const pipe of state.pipes) {
+          const parts = getPipeParts(pipe);
+          drawTiledColumn(parts.top.shaft, true);
+          drawTiledColumn(parts.bottom.shaft, false);
+        }
+      }
+
+      function drawPipeDecorations() {
+        for (const pipe of state.pipes) {
+          const parts = getPipeParts(pipe);
+
+          drawFlippedImage(img.pillarBase, parts.top.base);
+          drawFlippedImage(img.pillarCap, parts.top.cap);
+
+          ctx.drawImage(img.pillarBase, parts.bottom.base.x, parts.bottom.base.y, parts.bottom.base.w, parts.bottom.base.h);
+          ctx.drawImage(img.pillarCap, parts.bottom.cap.x, parts.bottom.cap.y, parts.bottom.cap.w, parts.bottom.cap.h);
+        }
+      }
+
+      function drawBird() {
+        const frames = 4;
+        const frameW = img.bird.width / frames;
+        const sx = bird.frame * frameW;
+
+        ctx.save();
+        ctx.translate(bird.x, bird.y);
+        ctx.rotate(bird.angle);
+        ctx.shadowColor = "rgba(0,0,0,.20)";
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 8;
+
+        ctx.drawImage(
+          img.bird,
+          sx + BOX.birdTrimX,
+          BOX.birdSheet.y - BOX.birdTrimY,
+          frameW - BOX.birdTrimX * 2,
+          BOX.birdSheet.h + BOX.birdTrimY * 2,
+          -bird.width / 2,
+          -bird.height / 2,
+          bird.width,
+          bird.height
+        );
+
+        ctx.restore();
+      }
+
+      function drawParticles() {
+        for (const p of state.particles) {
+          ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      function drawGround() {
+        drawRepeatingCrop(
+          img.ground,
+          BOX.groundCrop.x,
+          BOX.groundCrop.y,
+          BOX.groundCrop.w,
+          BOX.groundCrop.h,
+          state.groundScroll,
+          groundY,
+          groundH,
+          1
+        );
+      }
+
+      function drawOverlay() {
+        if (state.flash > 0) {
+          ctx.fillStyle = `rgba(255,255,255,${state.flash})`;
+          ctx.fillRect(0, 0, W, H);
+        }
+      }
+
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+
+        if (state.shake > 0) {
+          ctx.save();
+          ctx.translate(rand(-state.shake, state.shake), rand(-state.shake, state.shake));
+        }
+
+        drawBackground();
+        drawPipeShafts();
+        drawGround();
+        drawPipeDecorations();
+        drawBird();
+        drawParticles();
+        drawOverlay();
+
+        if (state.shake > 0) ctx.restore();
+      }
+
+      function allImagesLoaded() {
+        return Object.values(img).every(i => i.complete && i.naturalWidth > 0);
+      }
+
+      function readyWhenLoaded() {
+        if (allImagesLoaded()) {
+          state.mode = "ready";
+          updateHud();
+          startFresh();
+        } else {
+          setTimeout(readyWhenLoaded, 60);
+        }
+      }
+
+      let last = 0;
+      function loop(ts) {
+        const dt = Math.min(0.033, (ts - last) / 1000 || 0);
+        last = ts;
+        update(dt);
+        draw();
+        requestAnimationFrame(loop);
+      }
+
+      window.addEventListener("resize", resize);
+
+      window.addEventListener("keydown", e => {
+        if (e.code === "Space" || e.code === "ArrowUp") {
+          e.preventDefault();
+          input();
+        }
+      }, { passive: false });
+
+      ["pointerdown", "touchstart", "mousedown"].forEach(evt => {
+        canvas.addEventListener(evt, e => {
+          e.preventDefault();
+          input();
+        }, { passive: false });
+
+        tapZone.addEventListener(evt, e => {
+          e.preventDefault();
+          input();
+        }, { passive: false });
+      });
+
+      resize();
+      updateHud();
+      setPanel("Loading...", "Preparing the artwork and game world", "One moment");
+      readyWhenLoaded();
+      requestAnimationFrame(loop);
+    })();
+  </script>
+</body>
+</html>
