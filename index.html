@@ -270,6 +270,11 @@
         minShaftH: 45
       };
 
+      const VISUAL_SCALE = {
+        bird: 1.5,
+        column: 1.5
+      };
+
       const DIFFICULTY = {
         baseGapRatio: 0.235,
         maxGapPx: 205,
@@ -393,7 +398,7 @@
         bird.angle = 0;
         bird.frame = 0;
         bird.frameTimer = 0;
-        bird.width = W * 0.105;
+        bird.width = W * 0.105 * VISUAL_SCALE.bird;
         bird.height = bird.width * 0.76;
       }
 
@@ -458,7 +463,7 @@
 
       function addPipe() {
         const gap = currentGap();
-        const width = clamp(W * 0.148, 56, 72);
+        const width = clamp(W * 0.148 * VISUAL_SCALE.column, 56 * VISUAL_SCALE.column, 72 * VISUAL_SCALE.column);
         const x = W + width + 20;
 
         const m = getPipeMetrics(width);
@@ -573,10 +578,22 @@
         const bh = bird.height * 0.48;
 
         const parts = getPipeParts(pipe);
-        const rects = [
+        const rawRects = [
           parts.top.base, parts.top.shaft, parts.top.cap,
           parts.bottom.cap, parts.bottom.shaft, parts.bottom.base
         ];
+
+        const rects = rawRects.map(r => {
+          const isShaft = r === parts.top.shaft || r === parts.bottom.shaft;
+          const insetX = Math.min(r.w * (isShaft ? 0.10 : 0.08), 10);
+          const insetY = isShaft ? 0 : Math.min(r.h * 0.05, 6);
+          return {
+            x: r.x + insetX,
+            y: r.y + insetY,
+            w: Math.max(1, r.w - insetX * 2),
+            h: Math.max(1, r.h - insetY * 2)
+          };
+        });
 
         return rects.some(r => r.h > 0 && hitRect(bx, by, bw, bh, r.x, r.y, r.w, r.h));
       }
@@ -645,7 +662,7 @@
           }
         }
 
-        state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -160);
+        state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -240);
 
         const ceiling = bird.height * 0.42;
         const floor = groundY - bird.height * 0.26 + 15;
