@@ -302,7 +302,8 @@
         shake: 0,
         pipes: [],
         particles: [],
-        worldSpeed: 238
+        worldSpeed: 238,
+        audioPreparing: false
       };
 
       let audioUnlocked = false;
@@ -460,6 +461,35 @@
 
       function playMusicIfAllowed() {
         startMusicBuffer();
+      }
+
+      function isMusicReady() {
+        return !!decodedSounds.music;
+      }
+
+      async function prepareAudioForStart() {
+        musicWanted = true;
+
+        if (!audioUnlocked) {
+          audioUnlocked = true;
+        }
+
+        const ctxAudio = getAudioContext();
+        if (ctxAudio && ctxAudio.state === "suspended") {
+          try {
+            await ctxAudio.resume();
+          } catch (err) {
+            // Ignore resume failures.
+          }
+        }
+
+        // Keep these decoding in parallel. The SFX can be silent for the first
+        // tap if not ready yet, but the music must be ready before gameplay starts.
+        loadSoundBuffer("flap", ASSETS.flapSound);
+        loadSoundBuffer("crash", ASSETS.crashSound);
+
+        await loadSoundBuffer("music", ASSETS.music);
+        playMusicIfAllowed();
       }
 
       async function unlockAndStartMusic() {
@@ -648,6 +678,7 @@
         state.score = 0;
         state.flash = 0;
         state.shake = 0;
+        state.audioPreparing = false;
         state.pipes = [];
         state.particles = [];
         resetBird();
@@ -837,11 +868,26 @@
         return rects.some(r => r.h > 0 && hitRect(bx, by, bw, bh, r.x, r.y, r.w, r.h));
       }
 
-      function input() {
+      async function input() {
+        if (state.mode === "loading") return;
+
+        if (state.mode === "ready") {
+          if (state.audioPreparing) return;
+          state.audioPreparing = true;
+
+          if (!isMusicReady()) {
+            setPanel("Sky Hopper", "Preparing audio...", "Starting in a moment", "The game will begin as soon as the music is ready.");
+            await prepareAudioForStart();
+          } else {
+            await unlockAndStartMusic();
+          }
+
+          state.audioPreparing = false;
+          return beginRun();
+        }
+
         unlockAndStartMusic();
 
-        if (state.mode === "loading") return;
-        if (state.mode === "ready") return beginRun();
         if (state.mode === "playing") return flap();
         if (state.mode === "gameover") return startFresh();
       }
