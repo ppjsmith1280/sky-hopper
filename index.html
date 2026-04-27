@@ -312,76 +312,68 @@
 
       let audioUnlocked = false;
       let musicWanted = false;
+      let audioContext = null;
+      const decodedSounds = {
+        flap: null,
+        crash: null
+      };
+      const pendingSoundLoads = {};
 
-      function createSoundPool(src, count, volume = 1) {
-        const pool = [];
-
-        for (let i = 0; i < count; i++) {
-          const audio = new Audio(src);
-          audio.preload = "auto";
-          audio.volume = volume;
-
-          try {
-            audio.load();
-          } catch (err) {
-            // Ignore preload failures so the game never breaks.
-          }
-
-          pool.push(audio);
+      function getAudioContext() {
+        if (!audioContext) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return null;
+          audioContext = new AudioContextClass();
         }
 
-        return {
-          pool,
-          index: 0,
-          play() {
-            if (!audioUnlocked || document.hidden) return;
-
-            const audio = pool[this.index];
-            this.index = (this.index + 1) % pool.length;
-
-            try {
-              audio.pause();
-              audio.currentTime = 0;
-              audio.play().catch(() => {
-                // Ignore playback failures so the game never breaks.
-              });
-            } catch (err) {
-              // Ignore missing/unsupported audio errors.
-            }
-          },
-          prime() {
-            for (const audio of pool) {
-              try {
-                audio.muted = true;
-                const playPromise = audio.play();
-
-                if (playPromise && typeof playPromise.then === "function") {
-                  playPromise
-                    .then(() => {
-                      audio.pause();
-                      audio.currentTime = 0;
-                      audio.muted = false;
-                    })
-                    .catch(() => {
-                      audio.muted = false;
-                    });
-                } else {
-                  audio.pause();
-                  audio.currentTime = 0;
-                  audio.muted = false;
-                }
-              } catch (err) {
-                audio.muted = false;
-              }
-            }
-          }
-        };
+        return audioContext;
       }
 
-      const sfx = {
-        flap: createSoundPool(ASSETS.flapSound, 5, 0.7),
-        crash: createSoundPool(ASSETS.crashSound, 2, 0.9)
-      };
+      async function loadSoundBuffer(name, src) {
+        if (decodedSounds[name]) return decodedSounds[name];
+        if (pendingSoundLoads[name]) return pendingSoundLoads[name];
+
+        const ctxAudio = getAudioContext();
+        if (!ctxAudio) return null;
+
+        pendingSoundLoads[name] = fetch(src)
+          .then(response => {
+            if (!response.ok) throw new Error("Audio fetch failed");
+            return response.arrayBuffer();
+          })
+          .then(arrayBuffer => ctxAudio.decodeAudioData(arrayBuffer))
+          .then(buffer => {
+            decodedSounds[name] = buffer;
+            return buffer;
+          })
+          .catch(() => null);
+
+        return pendingSoundLoads[name];
+      }
+
+      function playBuffer(name, volume = 1) {
+        if (!audioUnlocked || document.hidden) return;
+
+        const ctxAudio = getAudioContext();
+        const buffer = decodedSounds[name];
+
+        if (!ctxAudio || !buffer) return;
+
+        try {
+          const source = ctxAudio.createBufferSource();
+          const gain = ctxAudio.createGain();
+
+          source.buffer = buffer;
+          gain.gain.value = volume;
+
+          source.connect(gain);
+          gain.connect(ctxAudio.destination);
+
+          source.start(0);
+        } catch (err) {
+          // Ignore playback failures so the game never breaks.
+        }
+      }
 
       function canPlayMusicNow() {
         return audioUnlocked && musicWanted && !document.hidden;
@@ -395,9 +387,18 @@
         });
       }
 
-      function unlockAndStartMusic() {
+      async function unlockAndStartMusic() {
         if (!audioUnlocked) {
           audioUnlocked = true;
+
+          const ctxAudio = getAudioContext();
+          if (ctxAudio && ctxAudio.state === "suspended") {
+            try {
+              await ctxAudio.resume();
+            } catch (err) {
+              // Ignore resume failures.
+            }
+          }
 
           try {
             music.load();
@@ -405,10 +406,16 @@
             // Ignore preload failures.
           }
 
-          // Prime short SFX during the same user gesture.
-          // This prevents iPhone from creating/decoding audio at flap/crash time.
-          sfx.flap.prime();
-          sfx.crash.prime();
+          // Decode short sound effects immediately after the first user gesture.
+          // This avoids creating, loading, or decoding audio during gameplay on iOS.
+          loadSoundBuffer("flap", ASSETS.flapSound);
+          loadSoundBuffer("crash", ASSETS.crashSound);
+        } else if (audioContext && audioContext.state === "suspended") {
+          try {
+            audioContext.resume();
+          } catch (err) {
+            // Ignore resume failures.
+          }
         }
 
         musicWanted = true;
@@ -426,7 +433,15 @@
       function handleAppVisibility() {
         if (document.hidden) {
           pauseMusic();
+
+          if (audioContext && audioContext.state === "running") {
+            audioContext.suspend().catch(() => {});
+          }
         } else {
+          if (audioContext && audioContext.state === "suspended") {
+            audioContext.resume().catch(() => {});
+          }
+
           playMusicIfAllowed();
         }
       }
@@ -438,11 +453,11 @@
       window.addEventListener("focus", playMusicIfAllowed);
 
       function playFlapSound() {
-        sfx.flap.play();
+        playBuffer("flap", 0.7);
       }
 
       function playCrashSound() {
-        sfx.crash.play();
+        playBuffer("crash", 0.9);
       }
 
       const bird = {
