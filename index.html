@@ -302,8 +302,7 @@
         shake: 0,
         pipes: [],
         particles: [],
-        worldSpeed: 238,
-        audioPreparing: false
+        worldSpeed: 238
       };
 
       let audioUnlocked = false;
@@ -460,52 +459,44 @@
       }
 
       function playMusicIfAllowed() {
-        startMusicBuffer();
-      }
-
-      function isMusicReady() {
-        return !!decodedSounds.music;
-      }
-
-      async function prepareAudioForStart() {
-        musicWanted = true;
-
-        if (!audioUnlocked) {
-          audioUnlocked = true;
-        }
+        if (!canPlayMusicNow()) return;
 
         const ctxAudio = getAudioContext();
         if (ctxAudio && ctxAudio.state === "suspended") {
-          try {
-            await ctxAudio.resume();
-          } catch (err) {
-            // Ignore resume failures.
-          }
+          ctxAudio.resume().catch(() => {});
         }
 
-        // Keep these decoding in parallel. The SFX can be silent for the first
-        // tap if not ready yet, but the music must be ready before gameplay starts.
-        loadSoundBuffer("flap", ASSETS.flapSound);
-        loadSoundBuffer("crash", ASSETS.crashSound);
-
-        await loadSoundBuffer("music", ASSETS.music);
-        playMusicIfAllowed();
+        startMusicBuffer();
       }
 
-      async function unlockAndStartMusic() {
+      function unlockWebAudioNow() {
+        const ctxAudio = getAudioContext();
+        if (!ctxAudio) return;
+
+        try {
+          if (ctxAudio.state === "suspended") {
+            ctxAudio.resume().catch(() => {});
+          }
+
+          // iOS can be picky with Web Audio. Starting a tiny silent buffer
+          // during the same tap reliably unlocks the audio pipeline without
+          // waiting for the next tap, crash sound, or any other sound event.
+          const silentBuffer = ctxAudio.createBuffer(1, 1, 22050);
+          const silentSource = ctxAudio.createBufferSource();
+          silentSource.buffer = silentBuffer;
+          silentSource.connect(ctxAudio.destination);
+          silentSource.start(0);
+        } catch (err) {
+          // Ignore unlock failures.
+        }
+      }
+
+      function unlockAndStartMusic() {
         musicWanted = true;
 
         if (!audioUnlocked) {
           audioUnlocked = true;
-
-          const ctxAudio = getAudioContext();
-          if (ctxAudio && ctxAudio.state === "suspended") {
-            try {
-              await ctxAudio.resume();
-            } catch (err) {
-              // Ignore resume failures.
-            }
-          }
+          unlockWebAudioNow();
 
           // These are usually already downloading/decoding from the title screen.
           // Calling them again is safe because the loader reuses the same promises.
@@ -514,12 +505,8 @@
           loadSoundBuffer("music", ASSETS.music).then(() => {
             playMusicIfAllowed();
           });
-        } else if (audioContext && audioContext.state === "suspended") {
-          try {
-            await audioContext.resume();
-          } catch (err) {
-            // Ignore resume failures.
-          }
+        } else {
+          unlockWebAudioNow();
         }
 
         playMusicIfAllowed();
@@ -678,7 +665,6 @@
         state.score = 0;
         state.flash = 0;
         state.shake = 0;
-        state.audioPreparing = false;
         state.pipes = [];
         state.particles = [];
         resetBird();
@@ -868,26 +854,11 @@
         return rects.some(r => r.h > 0 && hitRect(bx, by, bw, bh, r.x, r.y, r.w, r.h));
       }
 
-      async function input() {
-        if (state.mode === "loading") return;
-
-        if (state.mode === "ready") {
-          if (state.audioPreparing) return;
-          state.audioPreparing = true;
-
-          if (!isMusicReady()) {
-            setPanel("Sky Hopper", "Preparing audio...", "Starting in a moment", "The game will begin as soon as the music is ready.");
-            await prepareAudioForStart();
-          } else {
-            await unlockAndStartMusic();
-          }
-
-          state.audioPreparing = false;
-          return beginRun();
-        }
-
+      function input() {
         unlockAndStartMusic();
 
+        if (state.mode === "loading") return;
+        if (state.mode === "ready") return beginRun();
         if (state.mode === "playing") return flap();
         if (state.mode === "gameover") return startFresh();
       }
