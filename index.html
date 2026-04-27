@@ -216,7 +216,10 @@
         ground: "assets/ground.png",
         pillarCap: "assets/pillar_cap.png",
         pillarBase: "assets/pillar_base.png",
-        pillarColumn: "assets/pillar_column.png"
+        pillarColumn: "assets/pillar_column.png",
+        music: "assets/audio/music.mp3",
+        flapSound: "assets/audio/flap.mp3",
+        crashSound: "assets/audio/Crash_main.mp3"
       };
 
       const canvas = document.getElementById("game");
@@ -301,6 +304,75 @@
         particles: [],
         worldSpeed: 238
       };
+
+      const music = new Audio(ASSETS.music);
+      music.loop = true;
+      music.preload = "auto";
+      music.volume = 0.45;
+
+      let musicUnlocked = false;
+      let musicWanted = false;
+
+      function canPlayMusicNow() {
+        return musicUnlocked && musicWanted && !document.hidden;
+      }
+
+      function playMusicIfAllowed() {
+        if (!canPlayMusicNow()) return;
+        music.play().catch(() => {
+          // iOS may reject play() until a valid user gesture is received.
+        });
+      }
+
+      function unlockAndStartMusic() {
+        musicUnlocked = true;
+        musicWanted = true;
+        playMusicIfAllowed();
+      }
+
+      function pauseMusic() {
+        try {
+          music.pause();
+        } catch (err) {
+          // Ignore missing/unsupported audio errors.
+        }
+      }
+
+      function handleAppVisibility() {
+        if (document.hidden) {
+          pauseMusic();
+        } else {
+          playMusicIfAllowed();
+        }
+      }
+
+      document.addEventListener("visibilitychange", handleAppVisibility);
+      window.addEventListener("pagehide", pauseMusic);
+      window.addEventListener("blur", pauseMusic);
+      window.addEventListener("pageshow", playMusicIfAllowed);
+      window.addEventListener("focus", playMusicIfAllowed);
+
+      function playOneShotSound(src, volume = 1) {
+        if (!musicUnlocked || document.hidden) return;
+
+        try {
+          const sound = new Audio(src);
+          sound.volume = volume;
+          sound.play().catch(() => {
+            // Ignore playback failures so the game never breaks.
+          });
+        } catch (err) {
+          // Ignore missing/unsupported audio errors.
+        }
+      }
+
+      function playFlapSound() {
+        playOneShotSound(ASSETS.flapSound, 0.7);
+      }
+
+      function playCrashSound() {
+        playOneShotSound(ASSETS.crashSound, 0.9);
+      }
 
       const bird = {
         x: 0,
@@ -426,6 +498,7 @@
 
       function gameOver() {
         if (state.mode === "gameover") return;
+        playCrashSound();
         state.mode = "gameover";
         state.flash = 0.28;
         state.shake = 10;
@@ -441,6 +514,7 @@
       }
 
       function flap() {
+        playFlapSound();
         bird.vy = -Math.max(325, H * 0.6);
         bird.angle = -0.42;
         burst(bird.x - 8, bird.y + 6, 4, "rgba(255,255,255,.42)", true);
@@ -599,6 +673,8 @@
       }
 
       function input() {
+        unlockAndStartMusic();
+
         if (state.mode === "loading") return;
         if (state.mode === "ready") return beginRun();
         if (state.mode === "playing") return flap();
