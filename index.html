@@ -310,6 +310,14 @@
       music.preload = "auto";
       music.volume = 0.45;
 
+      try {
+        // Safe to request preload before user interaction.
+        // iOS may ignore this, but it helps on browsers that honor it.
+        music.load();
+      } catch (err) {
+        // Ignore preload failures.
+      }
+
       let audioUnlocked = false;
       let musicWanted = false;
       let audioContext = null;
@@ -318,6 +326,7 @@
         crash: null
       };
       const pendingSoundLoads = {};
+      const pendingSoundFiles = {};
 
       function getAudioContext() {
         if (!audioContext) {
@@ -329,6 +338,24 @@
         return audioContext;
       }
 
+      function preloadSoundFile(name, src) {
+        if (pendingSoundFiles[name]) return pendingSoundFiles[name];
+
+        pendingSoundFiles[name] = fetch(src)
+          .then(response => {
+            if (!response.ok) throw new Error("Audio fetch failed");
+            return response.arrayBuffer();
+          })
+          .catch(() => null);
+
+        return pendingSoundFiles[name];
+      }
+
+      // Start downloading short SFX with the normal asset load instead of waiting
+      // until the first gameplay tap. Decoding still happens after audio unlock.
+      preloadSoundFile("flap", ASSETS.flapSound);
+      preloadSoundFile("crash", ASSETS.crashSound);
+
       async function loadSoundBuffer(name, src) {
         if (decodedSounds[name]) return decodedSounds[name];
         if (pendingSoundLoads[name]) return pendingSoundLoads[name];
@@ -336,12 +363,11 @@
         const ctxAudio = getAudioContext();
         if (!ctxAudio) return null;
 
-        pendingSoundLoads[name] = fetch(src)
-          .then(response => {
-            if (!response.ok) throw new Error("Audio fetch failed");
-            return response.arrayBuffer();
+        pendingSoundLoads[name] = preloadSoundFile(name, src)
+          .then(arrayBuffer => {
+            if (!arrayBuffer) throw new Error("No audio data");
+            return ctxAudio.decodeAudioData(arrayBuffer.slice(0));
           })
-          .then(arrayBuffer => ctxAudio.decodeAudioData(arrayBuffer))
           .then(buffer => {
             decodedSounds[name] = buffer;
             return buffer;
@@ -382,40 +408,30 @@
       function playMusicIfAllowed() {
         if (!canPlayMusicNow()) return;
 
+        // Calling play() repeatedly on iOS can sometimes feel like it restarts or stutters.
+        // Only call play() when the music is actually paused.
+        if (!music.paused) return;
+
         music.play().catch(() => {
           // iOS may reject play() until a valid user gesture is received.
         });
       }
 
-      async function unlockAndStartMusic() {
+      function unlockAndStartMusic() {
         if (!audioUnlocked) {
           audioUnlocked = true;
 
           const ctxAudio = getAudioContext();
           if (ctxAudio && ctxAudio.state === "suspended") {
-            try {
-              await ctxAudio.resume();
-            } catch (err) {
-              // Ignore resume failures.
-            }
-          }
-
-          try {
-            music.load();
-          } catch (err) {
-            // Ignore preload failures.
+            ctxAudio.resume().catch(() => {});
           }
 
           // Decode short sound effects immediately after the first user gesture.
-          // This avoids creating, loading, or decoding audio during gameplay on iOS.
+          // The file downloads already started earlier, so this should usually finish fast.
           loadSoundBuffer("flap", ASSETS.flapSound);
           loadSoundBuffer("crash", ASSETS.crashSound);
         } else if (audioContext && audioContext.state === "suspended") {
-          try {
-            audioContext.resume();
-          } catch (err) {
-            // Ignore resume failures.
-          }
+          audioContext.resume().catch(() => {});
         }
 
         musicWanted = true;
