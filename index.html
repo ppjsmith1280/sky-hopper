@@ -305,28 +305,23 @@
         worldSpeed: 238
       };
 
-      const music = new Audio(ASSETS.music);
-      music.loop = true;
-      music.preload = "auto";
-      music.volume = 0.45;
-
-      try {
-        // Safe to request preload before user interaction.
-        // iOS may ignore this, but it helps on browsers that honor it.
-        music.load();
-      } catch (err) {
-        // Ignore preload failures.
-      }
-
       let audioUnlocked = false;
       let musicWanted = false;
       let audioContext = null;
+
       const decodedSounds = {
+        music: null,
         flap: null,
         crash: null
       };
+
       const pendingSoundLoads = {};
       const pendingSoundFiles = {};
+
+      let musicSource = null;
+      let musicGain = null;
+      let musicStartedAt = 0;
+      let musicOffset = 0;
 
       function getAudioContext() {
         if (!audioContext) {
@@ -351,8 +346,10 @@
         return pendingSoundFiles[name];
       }
 
-      // Start downloading short SFX with the normal asset load instead of waiting
-      // until the first gameplay tap. Decoding still happens after audio unlock.
+      // Start downloading audio with the normal asset load.
+      // iOS still requires the first user gesture before playback, but this
+      // lets the files be ready to decode as soon as the first tap happens.
+      preloadSoundFile("music", ASSETS.music);
       preloadSoundFile("flap", ASSETS.flapSound);
       preloadSoundFile("crash", ASSETS.crashSound);
 
@@ -405,33 +402,93 @@
         return audioUnlocked && musicWanted && !document.hidden;
       }
 
-      function playMusicIfAllowed() {
-        if (!canPlayMusicNow()) return;
+      function stopMusicBuffer(rememberPosition = true) {
+        const ctxAudio = getAudioContext();
 
-        // Calling play() repeatedly on iOS can sometimes feel like it restarts or stutters.
-        // Only call play() when the music is actually paused.
-        if (!music.paused) return;
+        if (musicSource) {
+          if (rememberPosition && ctxAudio && decodedSounds.music) {
+            musicOffset = (musicOffset + (ctxAudio.currentTime - musicStartedAt)) % decodedSounds.music.duration;
+          }
 
-        music.play().catch(() => {
-          // iOS may reject play() until a valid user gesture is received.
-        });
+          try {
+            musicSource.stop(0);
+          } catch (err) {
+            // Ignore already-stopped source errors.
+          }
+
+          try {
+            musicSource.disconnect();
+          } catch (err) {
+            // Ignore disconnect errors.
+          }
+
+          musicSource = null;
+          musicGain = null;
+        }
       }
 
-      function unlockAndStartMusic() {
+      function startMusicBuffer() {
+        if (!canPlayMusicNow()) return;
+        if (musicSource) return;
+
+        const ctxAudio = getAudioContext();
+        const buffer = decodedSounds.music;
+
+        if (!ctxAudio || !buffer) return;
+
+        try {
+          const source = ctxAudio.createBufferSource();
+          const gain = ctxAudio.createGain();
+
+          source.buffer = buffer;
+          source.loop = true;
+          gain.gain.value = 0.45;
+
+          source.connect(gain);
+          gain.connect(ctxAudio.destination);
+
+          musicStartedAt = ctxAudio.currentTime;
+          source.start(0, musicOffset % buffer.duration);
+
+          musicSource = source;
+          musicGain = gain;
+        } catch (err) {
+          musicSource = null;
+          musicGain = null;
+        }
+      }
+
+      function playMusicIfAllowed() {
+        startMusicBuffer();
+      }
+
+      async function unlockAndStartMusic() {
         if (!audioUnlocked) {
           audioUnlocked = true;
 
           const ctxAudio = getAudioContext();
           if (ctxAudio && ctxAudio.state === "suspended") {
-            ctxAudio.resume().catch(() => {});
+            try {
+              await ctxAudio.resume();
+            } catch (err) {
+              // Ignore resume failures.
+            }
           }
 
-          // Decode short sound effects immediately after the first user gesture.
-          // The file downloads already started earlier, so this should usually finish fast.
+          // Decode SFX first so gameplay taps stay responsive.
           loadSoundBuffer("flap", ASSETS.flapSound);
           loadSoundBuffer("crash", ASSETS.crashSound);
+
+          // Decode the longer music file and start it when ready.
+          loadSoundBuffer("music", ASSETS.music).then(() => {
+            playMusicIfAllowed();
+          });
         } else if (audioContext && audioContext.state === "suspended") {
-          audioContext.resume().catch(() => {});
+          try {
+            await audioContext.resume();
+          } catch (err) {
+            // Ignore resume failures.
+          }
         }
 
         musicWanted = true;
@@ -439,11 +496,7 @@
       }
 
       function pauseMusic() {
-        try {
-          music.pause();
-        } catch (err) {
-          // Ignore missing/unsupported audio errors.
-        }
+        stopMusicBuffer(true);
       }
 
       function handleAppVisibility() {
@@ -455,10 +508,12 @@
           }
         } else {
           if (audioContext && audioContext.state === "suspended") {
-            audioContext.resume().catch(() => {});
+            audioContext.resume().then(() => {
+              playMusicIfAllowed();
+            }).catch(() => {});
+          } else {
+            playMusicIfAllowed();
           }
-
-          playMusicIfAllowed();
         }
       }
 
