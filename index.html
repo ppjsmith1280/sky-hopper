@@ -310,22 +310,107 @@
       music.preload = "auto";
       music.volume = 0.45;
 
-      let musicUnlocked = false;
+      let audioUnlocked = false;
       let musicWanted = false;
 
+      function createSoundPool(src, count, volume = 1) {
+        const pool = [];
+
+        for (let i = 0; i < count; i++) {
+          const audio = new Audio(src);
+          audio.preload = "auto";
+          audio.volume = volume;
+
+          try {
+            audio.load();
+          } catch (err) {
+            // Ignore preload failures so the game never breaks.
+          }
+
+          pool.push(audio);
+        }
+
+        return {
+          pool,
+          index: 0,
+          play() {
+            if (!audioUnlocked || document.hidden) return;
+
+            const audio = pool[this.index];
+            this.index = (this.index + 1) % pool.length;
+
+            try {
+              audio.pause();
+              audio.currentTime = 0;
+              audio.play().catch(() => {
+                // Ignore playback failures so the game never breaks.
+              });
+            } catch (err) {
+              // Ignore missing/unsupported audio errors.
+            }
+          },
+          prime() {
+            for (const audio of pool) {
+              try {
+                audio.muted = true;
+                const playPromise = audio.play();
+
+                if (playPromise && typeof playPromise.then === "function") {
+                  playPromise
+                    .then(() => {
+                      audio.pause();
+                      audio.currentTime = 0;
+                      audio.muted = false;
+                    })
+                    .catch(() => {
+                      audio.muted = false;
+                    });
+                } else {
+                  audio.pause();
+                  audio.currentTime = 0;
+                  audio.muted = false;
+                }
+              } catch (err) {
+                audio.muted = false;
+              }
+            }
+          }
+        };
+      }
+
+      const sfx = {
+        flap: createSoundPool(ASSETS.flapSound, 5, 0.7),
+        crash: createSoundPool(ASSETS.crashSound, 2, 0.9)
+      };
+
       function canPlayMusicNow() {
-        return musicUnlocked && musicWanted && !document.hidden;
+        return audioUnlocked && musicWanted && !document.hidden;
       }
 
       function playMusicIfAllowed() {
         if (!canPlayMusicNow()) return;
+
         music.play().catch(() => {
           // iOS may reject play() until a valid user gesture is received.
         });
       }
 
       function unlockAndStartMusic() {
-        musicUnlocked = true;
+        if (!audioUnlocked) {
+          audioUnlocked = true;
+
+          try {
+            music.load();
+          } catch (err) {
+            // Ignore preload failures.
+          }
+
+          // Prime short SFX during the same user gesture.
+          // This prevents iPhone from creating/decoding audio at flap/crash time.
+          sfx.flap.prime();
+          sfx.crash.prime();
+        }
+
         musicWanted = true;
         playMusicIfAllowed();
       }
@@ -352,26 +437,12 @@
       window.addEventListener("pageshow", playMusicIfAllowed);
       window.addEventListener("focus", playMusicIfAllowed);
 
-      function playOneShotSound(src, volume = 1) {
-        if (!musicUnlocked || document.hidden) return;
-
-        try {
-          const sound = new Audio(src);
-          sound.volume = volume;
-          sound.play().catch(() => {
-            // Ignore playback failures so the game never breaks.
-          });
-        } catch (err) {
-          // Ignore missing/unsupported audio errors.
-        }
-      }
-
       function playFlapSound() {
-        playOneShotSound(ASSETS.flapSound, 0.7);
+        sfx.flap.play();
       }
 
       function playCrashSound() {
-        playOneShotSound(ASSETS.crashSound, 0.9);
+        sfx.crash.play();
       }
 
       const bird = {
