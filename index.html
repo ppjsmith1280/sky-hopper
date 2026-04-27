@@ -463,6 +463,8 @@
       }
 
       async function unlockAndStartMusic() {
+        musicWanted = true;
+
         if (!audioUnlocked) {
           audioUnlocked = true;
 
@@ -475,11 +477,10 @@
             }
           }
 
-          // Decode SFX first so gameplay taps stay responsive.
+          // These are usually already downloading/decoding from the title screen.
+          // Calling them again is safe because the loader reuses the same promises.
           loadSoundBuffer("flap", ASSETS.flapSound);
           loadSoundBuffer("crash", ASSETS.crashSound);
-
-          // Decode the longer music file and start it when ready.
           loadSoundBuffer("music", ASSETS.music).then(() => {
             playMusicIfAllowed();
           });
@@ -491,7 +492,6 @@
           }
         }
 
-        musicWanted = true;
         playMusicIfAllowed();
       }
 
@@ -530,6 +530,14 @@
       function playCrashSound() {
         playBuffer("crash", 0.9);
       }
+
+      // Begin downloading and decoding audio during the title/loading phase.
+      // iOS will not allow sound output until the first tap, but it can often
+      // fetch and decode the files ahead of time. This gives music the best
+      // chance to start on the first tap instead of the second tap.
+      loadSoundBuffer("flap", ASSETS.flapSound);
+      loadSoundBuffer("crash", ASSETS.crashSound);
+      loadSoundBuffer("music", ASSETS.music);
 
       const bird = {
         x: 0,
