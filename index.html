@@ -469,6 +469,22 @@
         startMusicBuffer();
       }
 
+      function keepTryingToStartMusic(durationMs = 1800) {
+        const startedAt = performance.now();
+
+        function attempt() {
+          if (!audioUnlocked || !musicWanted || document.hidden || musicSource) return;
+
+          playMusicIfAllowed();
+
+          if (!musicSource && performance.now() - startedAt < durationMs) {
+            requestAnimationFrame(attempt);
+          }
+        }
+
+        requestAnimationFrame(attempt);
+      }
+
       function unlockWebAudioNow() {
         const ctxAudio = getAudioContext();
         if (!ctxAudio) return;
@@ -504,12 +520,14 @@
           loadSoundBuffer("crash", ASSETS.crashSound);
           loadSoundBuffer("music", ASSETS.music).then(() => {
             playMusicIfAllowed();
+            keepTryingToStartMusic(1200);
           });
         } else {
           unlockWebAudioNow();
         }
 
         playMusicIfAllowed();
+        keepTryingToStartMusic(1800);
       }
 
       function pauseMusic() {
