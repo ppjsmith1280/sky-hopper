@@ -292,7 +292,7 @@
       };
 
       const VISUAL_SCALE = {
-        bird: 1.5,
+        bird: 1.875,
         column: 1.5
       };
 
@@ -336,7 +336,10 @@
         gameplayIntroActive: false,
         crashAnim: 0,
         crashLock: 0,
-        crashFeathers: []
+        crashExit: 0,
+        crashExiting: false,
+        crashFeathers: [],
+        hasStartedOnce: false
       };
 
       let audioUnlocked = false;
@@ -733,7 +736,6 @@
       }
 
       function startFresh() {
-        state.mode = "ready";
         state.t = 0;
         // Keep background and ground scroll positions between games.
         // This prevents the world from visually resetting after a crash.
@@ -746,24 +748,39 @@
         state.crashFeathers = [];
         state.crashAnim = 0;
         state.crashLock = 0;
+        state.gameplayIntro = 0;
+        state.gameplayIntroActive = false;
+        resetBird();
+        updateHud();
+        hidePanel();
+
+        if (state.hasStartedOnce) {
+          beginRun();
+          state.gameplayIntro = 0;
+          state.gameplayIntroActive = true;
+          bird.x = -bird.width * 1.2;
+          bird.y = H * 0.42;
+          bird.vy = 0;
+          bird.angle = 0.08;
+          return;
+        }
+
+        state.mode = "ready";
         state.titleIntro = 0;
         state.titleExit = 0;
-        // Title bird begins off the right side and first crosses the
-        // center of the logo before using alternate flight levels.
+
+        // First title-screen pass begins off the right side and crosses
+        // the center of the logo before using alternate flight levels.
         state.titleBird.x = W + 220;
         state.titleBird.y = H * 0.42;
         state.titleBird.vx = 230;
         state.titleBird.direction = -1;
         state.titleBird.pass = 0;
         state.titleBird.targetY = H * 0.42;
-        state.gameplayIntro = 0;
-        state.gameplayIntroActive = false;
-        resetBird();
-        updateHud();
-        hidePanel();
       }
 
       function beginRun() {
+        state.hasStartedOnce = true;
         state.mode = "playing";
         hidePanel();
 
@@ -791,6 +808,22 @@
         hidePanel();
       }
 
+      function beginCrashExitThenStart() {
+        if (state.mode !== "gameover") return;
+        if (state.crashLock > 0 || state.crashExiting) return;
+
+        state.crashExiting = true;
+        state.crashExit = 0;
+
+        // Push all existing feathers offscreen instead of letting them vanish.
+        for (const f of state.crashFeathers) {
+          const dir = f.x < W / 2 ? -1 : 1;
+          f.vx += dir * rand(380, 760);
+          f.vy -= rand(30, 130);
+          f.vr += rand(-6, 6);
+        }
+      }
+
       function gameOver() {
         if (state.mode === "gameover") return;
         playCrashSound();
@@ -799,6 +832,8 @@
         state.shake = 12;
         state.crashAnim = 0;
         state.crashLock = 1.0;
+        state.crashExit = 0;
+        state.crashExiting = false;
         state.crashFeathers = [];
         hidePanel();
 
@@ -893,28 +928,40 @@
       }
 
       function spawnCrashFeathers() {
-        const logoW = Math.min(W * 0.90, H * 0.54);
+        const logoW = Math.min(W * 0.81, H * 0.486);
         const logoH = img.crashLogo.naturalWidth
           ? logoW * (img.crashLogo.naturalHeight / img.crashLogo.naturalWidth)
           : logoW * 0.34;
         const cx = W / 2;
         const cy = H * 0.38;
 
-        for (let i = 0; i < 34; i++) {
+        for (let i = 0; i < 16; i++) {
           const angle = rand(-Math.PI, Math.PI);
           const speed = rand(190, 520);
           const fromLogoX = cx + rand(-logoW * 0.30, logoW * 0.30);
           const fromLogoY = cy + rand(-logoH * 0.18, logoH * 0.20);
 
+          let vx = Math.cos(angle) * speed;
+          let vy = Math.sin(angle) * speed * 0.42 - rand(0, 52);
+
+          // Feathers can pop upward, but not too high or too fast.
+          vy = Math.max(vy, -H * 0.30);
+
           state.crashFeathers.push({
             x: fromLogoX,
             y: fromLogoY,
-            vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed - rand(20, 120),
+            vx,
+            vy,
+            baseRot: rand(-Math.PI, Math.PI),
             rot: rand(-Math.PI, Math.PI),
-            vr: rand(-7, 7),
+            vr: rand(-2.2, 2.2),
+            flutterPhase: rand(0, Math.PI * 2),
+            flutterSpeed: rand(3.8, 6.6),
+            flutterAmp: rand(34, 72),
+            tiltAmp: rand(0.34, 0.72),
+            drift: rand(-18, 18),
             frame: Math.floor(rand(0, 4)),
-            size: rand(W * 0.075, W * 0.145)
+            size: rand(W * 0.075, W * 0.130)
           });
         }
       }
@@ -939,15 +986,32 @@
 
       function updateCrashFeathers(dt) {
         for (const f of state.crashFeathers) {
-          f.x += f.vx * dt;
+          const phase = state.t * f.flutterSpeed + f.flutterPhase;
+          const flutter = Math.sin(phase) * f.flutterAmp;
+          const flutterNudge = Math.cos(phase * 0.72) * f.flutterAmp * 0.22;
+
+          f.x += (f.vx + flutter + f.drift + flutterNudge) * dt;
           f.y += f.vy * dt;
-          f.vy += H * 0.22 * dt;
-          f.vx *= 0.992;
-          f.vr *= 0.996;
-          f.rot += f.vr * dt;
+
+          if (state.crashExiting) {
+            // Exit animation: feathers sweep away faster, but still flutter.
+            f.vx *= 0.996;
+            f.vy += H * 0.08 * dt;
+            f.vy = Math.min(f.vy, H * 0.42);
+          } else {
+            // Slow feather fall with noticeable air resistance.
+            f.vy += H * 0.075 * dt;
+            f.vy = Math.min(f.vy, H * 0.18);
+            f.vx *= 0.955;
+            f.drift *= 0.992;
+          }
+
+          f.vr *= 0.985;
+          f.rot = f.baseRot + Math.sin(phase) * f.tiltAmp + Math.sin(phase * 0.43) * 0.18;
+          f.baseRot += f.vr * dt;
         }
 
-        const margin = Math.max(W, H) * 0.30;
+        const margin = Math.max(W, H) * 0.55;
         state.crashFeathers = state.crashFeathers.filter(f =>
           f.x > -margin && f.x < W + margin && f.y > -margin && f.y < H + margin
         );
@@ -988,10 +1052,10 @@
       }
 
       function collides(pipe) {
-        const bx = bird.x - bird.width * 0.24;
-        const by = bird.y - bird.height * 0.24;
-        const bw = bird.width * 0.48;
-        const bh = bird.height * 0.48;
+        const bx = bird.x - bird.width * 0.20;
+        const by = bird.y - bird.height * 0.20;
+        const bw = bird.width * 0.40;
+        const bh = bird.height * 0.40;
 
         const parts = getPipeParts(pipe);
         const rawRects = [
@@ -1025,8 +1089,7 @@
           return flap();
         }
         if (state.mode === "gameover") {
-          if (state.crashLock > 0) return;
-          return startFresh();
+          return beginCrashExitThenStart();
         }
       }
 
@@ -1096,15 +1159,16 @@
 
           if (state.titleExit >= 1) {
             beginRun();
+            state.hasStartedOnce = true;
 
-            // Gameplay bird enters from the right after the title clears,
+            // Gameplay bird enters from the left after the title clears,
             // instead of simply appearing in place.
             state.gameplayIntro = 0;
             state.gameplayIntroActive = true;
-            bird.x = W + bird.width * 1.2;
+            bird.x = -bird.width * 1.2;
             bird.y = H * 0.42;
             bird.vy = 0;
-            bird.angle = -0.08;
+            bird.angle = 0.08;
           }
 
           return;
@@ -1113,8 +1177,18 @@
         if (state.mode === "gameover") {
           state.crashAnim = Math.min(1, state.crashAnim + dt);
           state.crashLock = Math.max(0, state.crashLock - dt);
+
+          if (state.crashExiting) {
+            state.crashExit = Math.min(1, state.crashExit + dt * 3.8);
+          }
+
           updateCrashFeathers(dt);
           updateParticles(dt);
+
+          if (state.crashExiting && state.crashExit >= 1) {
+            startFresh();
+          }
+
           return;
         }
 
@@ -1130,14 +1204,16 @@
         if (state.gameplayIntroActive) {
           state.gameplayIntro = Math.min(1, state.gameplayIntro + dt * 3.4);
           const introT = 1 - Math.pow(1 - state.gameplayIntro, 3);
-          bird.x = (W + bird.width * 1.2) + (Math.round(W * 0.24) - (W + bird.width * 1.2)) * introT;
+          const startX = -bird.width * 1.2;
+          const targetX = Math.round(W * 0.24);
+          bird.x = startX + (targetX - startX) * introT;
           bird.y = H * 0.42 + Math.sin(state.t * 4.2) * 6;
           bird.vy = 0;
-          bird.angle = -0.10 + Math.sin(state.t * 4.0) * 0.05;
+          bird.angle = 0.08 + Math.sin(state.t * 4.0) * 0.05;
 
           if (state.gameplayIntro >= 1) {
             state.gameplayIntroActive = false;
-            bird.x = Math.round(W * 0.24);
+            bird.x = targetX;
             bird.y = H * 0.42;
             bird.vy = -Math.max(325, H * 0.6);
             bird.angle = -0.42;
@@ -1483,16 +1559,19 @@
           ctx.translate(f.x, f.y);
           ctx.rotate(f.rot);
 
+          const drawW = f.size;
+          const drawH = drawW * (frameH / frameW);
+
           ctx.drawImage(
             img.feathers,
             f.frame * frameW,
             0,
             frameW,
             frameH,
-            -f.size / 2,
-            -f.size / 2,
-            f.size,
-            f.size
+            -drawW / 2,
+            -drawH / 2,
+            drawW,
+            drawH
           );
 
           ctx.restore();
@@ -1504,13 +1583,15 @@
         if (!img.crashLogo || !img.crashLogo.naturalWidth) return;
 
         const t = clamp(state.crashAnim, 0, 1);
+        const exit = clamp(state.crashExit, 0, 1);
         const crashIn = easeOutElastic(Math.min(1, t * 1.12));
         const settleShake = state.crashLock > 0 ? Math.sin(state.t * 72) * (1 - crashIn) * 0.10 : Math.sin(state.t * 2.2) * 0.012;
+        const exitEase = exit * exit * (3 - 2 * exit);
 
-        const logoW = Math.min(W * 0.90, H * 0.54);
+        const logoW = Math.min(W * 0.81, H * 0.486);
         const logoH = logoW * (img.crashLogo.naturalHeight / img.crashLogo.naturalWidth);
-        const logoX = W / 2;
-        const logoY = H * 0.38;
+        const logoX = W / 2 + exitEase * W * 1.25;
+        const logoY = H * 0.38 - exitEase * H * 0.12;
 
         // Feathers are drawn first so they appear to burst from behind the logo.
         drawCrashFeathers();
@@ -1518,7 +1599,7 @@
         ctx.save();
         ctx.translate(logoX, logoY);
         ctx.rotate(settleShake);
-        ctx.scale((0.25 + crashIn * 0.75), (0.25 + crashIn * 0.75));
+        ctx.scale((0.25 + crashIn * 0.75) * (1 - exitEase * 0.22), (0.25 + crashIn * 0.75) * (1 - exitEase * 0.22));
 
         ctx.shadowColor = "rgba(0,0,0,.32)";
         ctx.shadowBlur = 22;
