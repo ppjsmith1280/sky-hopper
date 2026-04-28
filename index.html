@@ -562,6 +562,23 @@
         playBuffer("flap", 0.7);
       }
 
+      function playFirstTapFlapSound() {
+        if (!audioUnlocked || document.hidden) return;
+
+        if (decodedSounds.flap) {
+          playBuffer("flap", 0.7);
+          playMusicIfAllowed();
+          keepTryingToStartMusic(1200);
+          return;
+        }
+
+        loadSoundBuffer("flap", ASSETS.flapSound).then(() => {
+          playBuffer("flap", 0.7);
+          playMusicIfAllowed();
+          keepTryingToStartMusic(1200);
+        });
+      }
+
       function playCrashSound() {
         playBuffer("crash", 0.9);
       }
@@ -693,7 +710,15 @@
       function beginRun() {
         state.mode = "playing";
         hidePanel();
-        flap();
+
+        // The first tap starts the game and makes the bird flap.
+        // Play the flap sound here too so iOS has a real SFX event on the
+        // first interaction, which also helps the Web Audio music begin.
+        playFirstTapFlapSound();
+
+        bird.vy = -Math.max(325, H * 0.6);
+        bird.angle = -0.42;
+        burst(bird.x - 8, bird.y + 6, 4, "rgba(255,255,255,.42)", true);
       }
 
       function gameOver() {
