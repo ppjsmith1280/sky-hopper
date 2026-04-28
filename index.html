@@ -339,7 +339,8 @@
         crashExit: 0,
         crashExiting: false,
         crashFeathers: [],
-        hasStartedOnce: false
+        hasStartedOnce: false,
+        columnsBehindGround: false
       };
 
       let audioUnlocked = false;
@@ -743,11 +744,14 @@
         state.score = 0;
         state.flash = 0;
         state.shake = 0;
+        state.columnsBehindGround = false;
         state.pipes = [];
         state.particles = [];
         state.crashFeathers = [];
         state.crashAnim = 0;
         state.crashLock = 0;
+        state.crashExit = 0;
+        state.crashExiting = false;
         state.gameplayIntro = 0;
         state.gameplayIntroActive = false;
         resetBird();
@@ -781,6 +785,9 @@
 
       function beginRun() {
         state.hasStartedOnce = true;
+        state.columnsBehindGround = false;
+        state.crashExit = 0;
+        state.crashExiting = false;
         state.mode = "playing";
         hidePanel();
 
@@ -814,6 +821,7 @@
 
         state.crashExiting = true;
         state.crashExit = 0;
+        state.columnsBehindGround = true;
 
         // Push all existing feathers offscreen instead of letting them vanish.
         for (const f of state.crashFeathers) {
@@ -821,6 +829,13 @@
           f.vx += dir * rand(380, 760);
           f.vy -= rand(30, 130);
           f.vr += rand(-6, 6);
+        }
+
+        // Give on-screen columns an earthquake-style exit instead of
+        // letting them disappear when the next game starts.
+        for (const pipe of state.pipes) {
+          pipe.exitSeed = rand(0, Math.PI * 2);
+          pipe.exitLean = rand(-1, 1);
         }
       }
 
@@ -908,7 +923,9 @@
           width,
           topEnd: center - gap / 2,
           bottomStart: center + gap / 2,
-          scored: false
+          scored: false,
+          exitSeed: 0,
+          exitLean: 0
         });
       }
 
@@ -1372,23 +1389,61 @@
         ctx.restore();
       }
 
+
+      function smoothStep(t) {
+        return t * t * (3 - 2 * t);
+      }
+
+      function pipeExitOffset(pipe, isTop) {
+        if (state.mode !== "gameover" || !state.crashExiting) return { x: 0, y: 0, lean: 0 };
+
+        const e = smoothStep(clamp(state.crashExit, 0, 1));
+        const seed = pipe.exitSeed || 0;
+        const quake = Math.sin(state.t * 68 + seed) * (1 - e) * 9;
+        const fall = e * H * 0.62;
+        const lean = (pipe.exitLean || 0) * e * 10;
+
+        return {
+          x: quake + lean,
+          y: isTop ? -fall : fall,
+          lean
+        };
+      }
+
+      function offsetRect(rect, off) {
+        return {
+          x: rect.x + off.x,
+          y: rect.y + off.y,
+          w: rect.w,
+          h: rect.h
+        };
+      }
+
       function drawPipeShafts() {
         for (const pipe of state.pipes) {
           const parts = getPipeParts(pipe);
-          drawTiledColumn(parts.top.shaft, true);
-          drawTiledColumn(parts.bottom.shaft, false);
+          const topOff = pipeExitOffset(pipe, true);
+          const bottomOff = pipeExitOffset(pipe, false);
+
+          drawTiledColumn(offsetRect(parts.top.shaft, topOff), true);
+          drawTiledColumn(offsetRect(parts.bottom.shaft, bottomOff), false);
         }
       }
 
       function drawPipeDecorations() {
         for (const pipe of state.pipes) {
           const parts = getPipeParts(pipe);
+          const topOff = pipeExitOffset(pipe, true);
+          const bottomOff = pipeExitOffset(pipe, false);
 
-          drawFlippedImage(img.pillarBase, parts.top.base);
-          drawFlippedImage(img.pillarCap, parts.top.cap);
+          drawFlippedImage(img.pillarBase, offsetRect(parts.top.base, topOff));
+          drawFlippedImage(img.pillarCap, offsetRect(parts.top.cap, topOff));
 
-          ctx.drawImage(img.pillarBase, parts.bottom.base.x, parts.bottom.base.y, parts.bottom.base.w, parts.bottom.base.h);
-          ctx.drawImage(img.pillarCap, parts.bottom.cap.x, parts.bottom.cap.y, parts.bottom.cap.w, parts.bottom.cap.h);
+          const bottomBase = offsetRect(parts.bottom.base, bottomOff);
+          const bottomCap = offsetRect(parts.bottom.cap, bottomOff);
+
+          ctx.drawImage(img.pillarBase, bottomBase.x, bottomBase.y, bottomBase.w, bottomBase.h);
+          ctx.drawImage(img.pillarCap, bottomCap.x, bottomCap.y, bottomCap.w, bottomCap.h);
         }
       }
 
@@ -1493,7 +1548,9 @@
 
         // Animated bird flying in front of the title graphic.
         const tb = state.titleBird;
-        const titleBirdW = bird.width * 2.2;
+        // Title bird stays at the earlier title-screen size even though
+        // the gameplay bird was enlarged.
+        const titleBirdW = bird.width * 1.76;
         const frames = 4;
         const frameW = img.bird.width / frames;
         const sx = bird.frame * frameW;
@@ -1657,9 +1714,19 @@
         }
 
         drawBackground();
-        drawPipeShafts();
-        drawGround();
-        drawPipeDecorations();
+
+        if (state.columnsBehindGround) {
+          // During the crash-exit earthquake animation, move all column
+          // pieces behind the ground so they disappear into/behind the terrain.
+          drawPipeShafts();
+          drawPipeDecorations();
+          drawGround();
+        } else {
+          // Normal gameplay layering.
+          drawPipeShafts();
+          drawGround();
+          drawPipeDecorations();
+        }
 
         if (state.mode === "playing" || state.mode === "gameover") {
           drawBird();
