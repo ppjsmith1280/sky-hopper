@@ -1528,11 +1528,11 @@
 
         // Soft animated glow behind title.
         ctx.save();
-        ctx.globalAlpha = alpha * (0.20 + Math.sin(state.t * 2.4) * 0.04);
+        ctx.globalAlpha = alpha * (0.095 + Math.sin(state.t * 2.4) * 0.018);
         ctx.fillStyle = "rgba(255,235,145,1)";
         ctx.beginPath();
-        ctx.ellipse(logoX, logoY + logoH * 0.18, logoW * 0.50, logoH * 0.30, 0, 0, Math.PI * 2);
-        ctx.filter = "blur(18px)";
+        ctx.ellipse(logoX, logoY + logoH * 0.18, logoW * 0.62, logoH * 0.40, 0, 0, Math.PI * 2);
+        ctx.filter = "blur(34px)";
         ctx.fill();
         ctx.filter = "none";
         ctx.restore();
@@ -1684,7 +1684,24 @@
         ctx.globalAlpha = 1;
       }
 
+
+      function groundQuakeOffset() {
+        if (state.mode !== "gameover" || !state.crashExiting) return { x: 0, y: 0 };
+
+        const e = clamp(state.crashExit, 0, 1);
+        const fade = 1 - e;
+        return {
+          x: Math.sin(state.t * 82) * 5 * fade + Math.sin(state.t * 131) * 2 * fade,
+          y: Math.cos(state.t * 96) * 3 * fade
+        };
+      }
+
       function drawGround() {
+        const quake = groundQuakeOffset();
+
+        ctx.save();
+        ctx.translate(quake.x, quake.y);
+
         drawRepeatingCrop(
           img.ground,
           BOX.groundCrop.x,
@@ -1696,6 +1713,8 @@
           groundH,
           1
         );
+
+        ctx.restore();
       }
 
       function drawOverlay() {
