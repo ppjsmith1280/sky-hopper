@@ -211,7 +211,10 @@
   <script>
     (() => {
       const ASSETS = {
-        background: "assets/background.png",
+        backgroundClouds: "assets/background_clouds.png",
+        backgroundMountains: "assets/background_mountains.png",
+        backgroundTrees: "assets/background_trees.png",
+        backgroundPlants: "assets/background_plants.png",
         bird: "assets/bird_sheet.png",
         ground: "assets/ground.png",
         pillarCap: "assets/pillar_cap.png",
@@ -244,7 +247,10 @@
       const BASE_WIDTH = 420;
 
       const img = {
-        background: new Image(),
+        backgroundClouds: new Image(),
+        backgroundMountains: new Image(),
+        backgroundTrees: new Image(),
+        backgroundPlants: new Image(),
         bird: new Image(),
         ground: new Image(),
         pillarCap: new Image(),
@@ -252,7 +258,10 @@
         pillarColumn: new Image()
       };
 
-      img.background.src = ASSETS.background;
+      img.backgroundClouds.src = ASSETS.backgroundClouds;
+      img.backgroundMountains.src = ASSETS.backgroundMountains;
+      img.backgroundTrees.src = ASSETS.backgroundTrees;
+      img.backgroundPlants.src = ASSETS.backgroundPlants;
       img.bird.src = ASSETS.bird;
       img.ground.src = ASSETS.ground;
       img.pillarCap.src = ASSETS.pillarCap;
@@ -694,8 +703,8 @@
       function startFresh() {
         state.mode = "ready";
         state.t = 0;
-        state.bgScroll = 0;
-        state.groundScroll = 0;
+        // Keep background and ground scroll positions between games.
+        // This prevents the world from visually resetting after a crash.
         state.spawnTimer = 0;
         state.score = 0;
         state.flash = 0;
@@ -1005,9 +1014,39 @@
       }
 
       function drawBackground() {
+        // Draw from farthest layer to nearest layer:
+        // clouds -> mountains -> trees -> plants -> game elements.
+        // The foreground columns, bird, particles, and ground are drawn later.
         drawRepeatingImage(
-          img.background,
-          state.bgScroll,
+          img.backgroundClouds,
+          state.bgScroll * 0.16,
+          0,
+          H,
+          1,
+          1
+        );
+
+        drawRepeatingImage(
+          img.backgroundMountains,
+          state.bgScroll * 0.30,
+          0,
+          H,
+          1,
+          1
+        );
+
+        drawRepeatingImage(
+          img.backgroundTrees,
+          state.bgScroll * 0.50,
+          0,
+          H,
+          1,
+          1
+        );
+
+        drawRepeatingImage(
+          img.backgroundPlants,
+          state.bgScroll * 0.74,
           0,
           H,
           1,
