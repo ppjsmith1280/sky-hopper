@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-  <title>Sky Hopper</title>
+  <title>Flap Tap</title>
   <meta name="theme-color" content="#2c80e2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Sky Hopper">
+  <meta name="apple-mobile-web-app-title" content="Flap Tap">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" sizes="192x192" href="assets/icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="assets/icon-512.png">
@@ -215,6 +215,9 @@
         backgroundMountains: "assets/background_mountains.png",
         backgroundTrees: "assets/background_trees.png",
         backgroundPlants: "assets/background_plants.png",
+        titleLogo: "assets/title.png",
+        crashLogo: "assets/CRASH.png",
+        feathers: "assets/feathers.png",
         bird: "assets/bird_sheet.png",
         ground: "assets/ground.png",
         pillarCap: "assets/pillar_cap.png",
@@ -251,6 +254,9 @@
         backgroundMountains: new Image(),
         backgroundTrees: new Image(),
         backgroundPlants: new Image(),
+        titleLogo: new Image(),
+        crashLogo: new Image(),
+        feathers: new Image(),
         bird: new Image(),
         ground: new Image(),
         pillarCap: new Image(),
@@ -262,6 +268,9 @@
       img.backgroundMountains.src = ASSETS.backgroundMountains;
       img.backgroundTrees.src = ASSETS.backgroundTrees;
       img.backgroundPlants.src = ASSETS.backgroundPlants;
+      img.titleLogo.src = ASSETS.titleLogo;
+      img.crashLogo.src = ASSETS.crashLogo;
+      img.feathers.src = ASSETS.feathers;
       img.bird.src = ASSETS.bird;
       img.ground.src = ASSETS.ground;
       img.pillarCap.src = ASSETS.pillarCap;
@@ -311,7 +320,23 @@
         shake: 0,
         pipes: [],
         particles: [],
-        worldSpeed: 238
+        worldSpeed: 238,
+        titleIntro: 0,
+        titleExit: 0,
+        audioReady: false,
+        titleBird: {
+          x: -220,
+          y: 0,
+          vx: 230,
+          direction: 1,
+          pass: 0,
+          targetY: 0
+        },
+        gameplayIntro: 0,
+        gameplayIntroActive: false,
+        crashAnim: 0,
+        crashLock: 0,
+        crashFeathers: []
       };
 
       let audioUnlocked = false;
@@ -596,9 +621,16 @@
       // iOS will not allow sound output until the first tap, but it can often
       // fetch and decode the files ahead of time. This gives music the best
       // chance to start on the first tap instead of the second tap.
-      loadSoundBuffer("flap", ASSETS.flapSound);
-      loadSoundBuffer("crash", ASSETS.crashSound);
-      loadSoundBuffer("music", ASSETS.music);
+      Promise.all([
+        loadSoundBuffer("flap", ASSETS.flapSound),
+        loadSoundBuffer("crash", ASSETS.crashSound),
+        loadSoundBuffer("music", ASSETS.music)
+      ]).then(() => {
+        state.audioReady = true;
+      }).catch(() => {
+        // Do not permanently block the game if audio fails to load.
+        state.audioReady = true;
+      });
 
       const bird = {
         x: 0,
@@ -711,9 +743,24 @@
         state.shake = 0;
         state.pipes = [];
         state.particles = [];
+        state.crashFeathers = [];
+        state.crashAnim = 0;
+        state.crashLock = 0;
+        state.titleIntro = 0;
+        state.titleExit = 0;
+        // Title bird begins off the right side and first crosses the
+        // center of the logo before using alternate flight levels.
+        state.titleBird.x = W + 220;
+        state.titleBird.y = H * 0.42;
+        state.titleBird.vx = 230;
+        state.titleBird.direction = -1;
+        state.titleBird.pass = 0;
+        state.titleBird.targetY = H * 0.42;
+        state.gameplayIntro = 0;
+        state.gameplayIntroActive = false;
         resetBird();
         updateHud();
-        setPanel("Sky Hopper", "An original tap to fly arcade game", "Tap, click, or press Space to start", "Pass through the ancient columns.");
+        hidePanel();
       }
 
       function beginRun() {
@@ -730,12 +777,30 @@
         burst(bird.x - 8, bird.y + 6, 4, "rgba(255,255,255,.42)", true);
       }
 
+      function startTitleExitThenRun() {
+        if (state.mode !== "ready") return;
+        if (!state.audioReady) return;
+
+        state.mode = "titleExit";
+        state.titleExit = 0;
+
+        // Send the animated title bird rapidly offscreen in whichever
+        // direction it was already flying.
+        state.titleBird.vx = 980;
+
+        hidePanel();
+      }
+
       function gameOver() {
         if (state.mode === "gameover") return;
         playCrashSound();
         state.mode = "gameover";
         state.flash = 0.28;
-        state.shake = 10;
+        state.shake = 12;
+        state.crashAnim = 0;
+        state.crashLock = 1.0;
+        state.crashFeathers = [];
+        hidePanel();
 
         if (state.score > state.best) {
           state.best = state.score;
@@ -743,7 +808,7 @@
         }
 
         updateHud();
-        setPanel("Crashed!", `Score: ${state.score} • Best: ${state.best}`, "Tap, click, or press Space to play again", "Tip: short rhythmic taps work best.");
+        spawnCrashFeathers();
         burst(bird.x, bird.y, 16, "#fff4c7");
       }
 
@@ -827,6 +892,33 @@
         }
       }
 
+      function spawnCrashFeathers() {
+        const logoW = Math.min(W * 0.90, H * 0.54);
+        const logoH = img.crashLogo.naturalWidth
+          ? logoW * (img.crashLogo.naturalHeight / img.crashLogo.naturalWidth)
+          : logoW * 0.34;
+        const cx = W / 2;
+        const cy = H * 0.38;
+
+        for (let i = 0; i < 34; i++) {
+          const angle = rand(-Math.PI, Math.PI);
+          const speed = rand(190, 520);
+          const fromLogoX = cx + rand(-logoW * 0.30, logoW * 0.30);
+          const fromLogoY = cy + rand(-logoH * 0.18, logoH * 0.20);
+
+          state.crashFeathers.push({
+            x: fromLogoX,
+            y: fromLogoY,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - rand(20, 120),
+            rot: rand(-Math.PI, Math.PI),
+            vr: rand(-7, 7),
+            frame: Math.floor(rand(0, 4)),
+            size: rand(W * 0.075, W * 0.145)
+          });
+        }
+      }
+
       function scorePipe() {
         state.score += 1;
         updateHud();
@@ -843,6 +935,22 @@
           p.vx *= 0.99;
         }
         state.particles = state.particles.filter(p => p.life > 0);
+      }
+
+      function updateCrashFeathers(dt) {
+        for (const f of state.crashFeathers) {
+          f.x += f.vx * dt;
+          f.y += f.vy * dt;
+          f.vy += H * 0.22 * dt;
+          f.vx *= 0.992;
+          f.vr *= 0.996;
+          f.rot += f.vr * dt;
+        }
+
+        const margin = Math.max(W, H) * 0.30;
+        state.crashFeathers = state.crashFeathers.filter(f =>
+          f.x > -margin && f.x < W + margin && f.y > -margin && f.y < H + margin
+        );
       }
 
       function getPipeParts(pipe) {
@@ -910,9 +1018,16 @@
         unlockAndStartMusic();
 
         if (state.mode === "loading") return;
-        if (state.mode === "ready") return beginRun();
-        if (state.mode === "playing") return flap();
-        if (state.mode === "gameover") return startFresh();
+        if (state.mode === "ready") return startTitleExitThenRun();
+        if (state.mode === "titleExit") return;
+        if (state.mode === "playing") {
+          if (state.gameplayIntroActive) return;
+          return flap();
+        }
+        if (state.mode === "gameover") {
+          if (state.crashLock > 0) return;
+          return startFresh();
+        }
       }
 
       function update(dt) {
@@ -928,13 +1043,77 @@
         }
 
         if (state.mode === "ready") {
-          bird.y = H * 0.42 + Math.sin(state.t * 3.2) * 12;
-          bird.angle = Math.sin(state.t * 3.2) * 0.08;
+          state.titleIntro = Math.min(1, state.titleIntro + dt * 2.8);
+
+          const tb = state.titleBird;
+          tb.x += tb.vx * dt * tb.direction;
+          tb.y = tb.targetY + Math.sin(state.t * 2.6) * 10;
+
+          if (tb.direction === 1 && tb.x > W + 220) {
+            tb.direction = -1;
+            tb.x = W + 220;
+            tb.pass += 1;
+
+            // First pass is always across the center of the logo.
+            // Later passes alternate between higher and lower flight paths.
+            const levels = [
+              H * 0.42,
+              H * 0.34,
+              H * 0.50,
+              H * 0.38,
+              H * 0.56
+            ];
+            tb.targetY = levels[tb.pass % levels.length];
+          }
+
+          if (tb.direction === -1 && tb.x < -220) {
+            tb.direction = 1;
+            tb.x = -220;
+            tb.pass += 1;
+
+            const levels = [
+              H * 0.42,
+              H * 0.34,
+              H * 0.50,
+              H * 0.38,
+              H * 0.56
+            ];
+            tb.targetY = levels[tb.pass % levels.length];
+          }
+
           updateParticles(dt);
           return;
         }
 
+        if (state.mode === "titleExit") {
+          state.titleExit = Math.min(1, state.titleExit + dt * 5.2);
+
+          const tb = state.titleBird;
+          tb.x += tb.vx * dt * tb.direction;
+          tb.y = tb.targetY + Math.sin(state.t * 2.6) * 10;
+
+          updateParticles(dt);
+
+          if (state.titleExit >= 1) {
+            beginRun();
+
+            // Gameplay bird enters from the right after the title clears,
+            // instead of simply appearing in place.
+            state.gameplayIntro = 0;
+            state.gameplayIntroActive = true;
+            bird.x = W + bird.width * 1.2;
+            bird.y = H * 0.42;
+            bird.vy = 0;
+            bird.angle = -0.08;
+          }
+
+          return;
+        }
+
         if (state.mode === "gameover") {
+          state.crashAnim = Math.min(1, state.crashAnim + dt);
+          state.crashLock = Math.max(0, state.crashLock - dt);
+          updateCrashFeathers(dt);
           updateParticles(dt);
           return;
         }
@@ -947,6 +1126,26 @@
         const speed = currentSpeed();
         state.bgScroll += dt * speed * 0.16;
         state.groundScroll += dt * speed;
+
+        if (state.gameplayIntroActive) {
+          state.gameplayIntro = Math.min(1, state.gameplayIntro + dt * 3.4);
+          const introT = 1 - Math.pow(1 - state.gameplayIntro, 3);
+          bird.x = (W + bird.width * 1.2) + (Math.round(W * 0.24) - (W + bird.width * 1.2)) * introT;
+          bird.y = H * 0.42 + Math.sin(state.t * 4.2) * 6;
+          bird.vy = 0;
+          bird.angle = -0.10 + Math.sin(state.t * 4.0) * 0.05;
+
+          if (state.gameplayIntro >= 1) {
+            state.gameplayIntroActive = false;
+            bird.x = Math.round(W * 0.24);
+            bird.y = H * 0.42;
+            bird.vy = -Math.max(325, H * 0.6);
+            bird.angle = -0.42;
+          }
+
+          updateParticles(dt);
+          return;
+        }
 
         bird.vy += H * 2.05 * dt;
         bird.y += bird.vy * dt;
@@ -1144,6 +1343,198 @@
         ctx.restore();
       }
 
+
+      function easeOutBack(t) {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+      }
+
+      function drawTitleBird(x, y, width, alpha) {
+        const frames = 4;
+        const frameW = img.bird.width / frames;
+        const sx = bird.frame * frameW;
+        const height = width * 0.76;
+
+        ctx.save();
+        ctx.globalAlpha *= alpha;
+        ctx.translate(x, y);
+        ctx.rotate(Math.sin(state.t * 2.8) * 0.09);
+        ctx.shadowColor = "rgba(0,0,0,.22)";
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 8;
+
+        ctx.drawImage(
+          img.bird,
+          sx + BOX.birdTrimX,
+          BOX.birdSheet.y - BOX.birdTrimY,
+          frameW - BOX.birdTrimX * 2,
+          BOX.birdSheet.h + BOX.birdTrimY * 2,
+          -width / 2,
+          -height / 2,
+          width,
+          height
+        );
+
+        ctx.restore();
+      }
+
+      function drawTitleSplash() {
+        if (state.mode !== "ready" && state.mode !== "titleExit") return;
+        if (!img.titleLogo || !img.titleLogo.naturalWidth) return;
+
+        const intro = clamp(state.titleIntro, 0, 1);
+        const exit = clamp(state.titleExit, 0, 1);
+        const inScale = 0.45 + easeOutBack(intro) * 0.55;
+        const pulse = 1 + Math.sin(state.t * 3.0) * 0.018;
+        const exitScale = 1 + exit * 0.42;
+        const alpha = Math.max(0, 1 - exit * 1.2);
+        const slideY = (1 - intro) * -H * 0.18 - exit * H * 0.20;
+        const logoW = Math.min(W * 0.86, H * 0.54);
+        const logoH = logoW * (img.titleLogo.naturalHeight / img.titleLogo.naturalWidth);
+        const logoX = W / 2;
+        const logoY = H * 0.42 + slideY;
+
+        // Soft animated glow behind title.
+        ctx.save();
+        ctx.globalAlpha = alpha * (0.20 + Math.sin(state.t * 2.4) * 0.04);
+        ctx.fillStyle = "rgba(255,235,145,1)";
+        ctx.beginPath();
+        ctx.ellipse(logoX, logoY + logoH * 0.18, logoW * 0.50, logoH * 0.30, 0, 0, Math.PI * 2);
+        ctx.filter = "blur(18px)";
+        ctx.fill();
+        ctx.filter = "none";
+        ctx.restore();
+
+        // Logo, centered on screen.
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(logoX, logoY);
+        ctx.scale(inScale * pulse * exitScale, inScale * pulse * exitScale);
+        ctx.rotate(Math.sin(state.t * 1.8) * 0.015);
+        ctx.drawImage(img.titleLogo, -logoW / 2, -logoH / 2, logoW, logoH);
+        ctx.restore();
+
+        // Animated bird flying in front of the title graphic.
+        const tb = state.titleBird;
+        const titleBirdW = bird.width * 2.2;
+        const frames = 4;
+        const frameW = img.bird.width / frames;
+        const sx = bird.frame * frameW;
+        const titleBirdH = titleBirdW * 0.76;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(tb.x, tb.y);
+
+        // Flip the bird based on travel direction.
+        // The sprite faces right by default, so scale(-1, 1) when flying left.
+        if (tb.direction === -1) {
+          ctx.scale(-1, 1);
+        }
+
+        ctx.rotate(Math.sin(state.t * 2.5) * 0.10);
+        ctx.shadowColor = "rgba(0,0,0,.24)";
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 8;
+
+        ctx.drawImage(
+          img.bird,
+          sx + BOX.birdTrimX,
+          BOX.birdSheet.y - BOX.birdTrimY,
+          frameW - BOX.birdTrimX * 2,
+          BOX.birdSheet.h + BOX.birdTrimY * 2,
+          -titleBirdW / 2,
+          -titleBirdH / 2,
+          titleBirdW,
+          titleBirdH
+        );
+
+        ctx.restore();
+
+        // Small ambient sparkle/flap circles around the title.
+        if (state.mode === "ready" && Math.random() < 0.10) {
+          burst(
+            W * rand(0.28, 0.72),
+            H * rand(0.28, 0.56),
+            1,
+            "rgba(255,245,170,.38)",
+            true
+          );
+        }
+      }
+
+
+      function easeOutElastic(t) {
+        if (t === 0 || t === 1) return t;
+        const c4 = (2 * Math.PI) / 3;
+        return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+      }
+
+      function drawCrashFeathers() {
+        if (!img.feathers || !img.feathers.naturalWidth) return;
+
+        const frames = 4;
+        const frameW = img.feathers.naturalWidth / frames;
+        const frameH = img.feathers.naturalHeight;
+
+        for (const f of state.crashFeathers) {
+          ctx.save();
+          ctx.translate(f.x, f.y);
+          ctx.rotate(f.rot);
+
+          ctx.drawImage(
+            img.feathers,
+            f.frame * frameW,
+            0,
+            frameW,
+            frameH,
+            -f.size / 2,
+            -f.size / 2,
+            f.size,
+            f.size
+          );
+
+          ctx.restore();
+        }
+      }
+
+      function drawCrashSplash() {
+        if (state.mode !== "gameover") return;
+        if (!img.crashLogo || !img.crashLogo.naturalWidth) return;
+
+        const t = clamp(state.crashAnim, 0, 1);
+        const crashIn = easeOutElastic(Math.min(1, t * 1.12));
+        const settleShake = state.crashLock > 0 ? Math.sin(state.t * 72) * (1 - crashIn) * 0.10 : Math.sin(state.t * 2.2) * 0.012;
+
+        const logoW = Math.min(W * 0.90, H * 0.54);
+        const logoH = logoW * (img.crashLogo.naturalHeight / img.crashLogo.naturalWidth);
+        const logoX = W / 2;
+        const logoY = H * 0.38;
+
+        // Feathers are drawn first so they appear to burst from behind the logo.
+        drawCrashFeathers();
+
+        ctx.save();
+        ctx.translate(logoX, logoY);
+        ctx.rotate(settleShake);
+        ctx.scale((0.25 + crashIn * 0.75), (0.25 + crashIn * 0.75));
+
+        ctx.shadowColor = "rgba(0,0,0,.32)";
+        ctx.shadowBlur = 22;
+        ctx.shadowOffsetY = 10;
+
+        ctx.drawImage(
+          img.crashLogo,
+          -logoW / 2,
+          -logoH / 2,
+          logoW,
+          logoH
+        );
+
+        ctx.restore();
+      }
+
       function drawParticles() {
         for (const p of state.particles) {
           ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
@@ -1188,8 +1579,14 @@
         drawPipeShafts();
         drawGround();
         drawPipeDecorations();
-        drawBird();
+
+        if (state.mode === "playing" || state.mode === "gameover") {
+          drawBird();
+        }
+
         drawParticles();
+        drawTitleSplash();
+        drawCrashSplash();
         drawOverlay();
 
         if (state.shake > 0) ctx.restore();
@@ -1241,7 +1638,7 @@
 
       resize();
       updateHud();
-      setPanel("Loading...", "Preparing the artwork and game world", "One moment");
+      hidePanel();
       readyWhenLoaded();
       requestAnimationFrame(loop);
     })();
