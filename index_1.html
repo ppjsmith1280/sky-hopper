@@ -3,11 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-  <title>Sky Hopper</title>
+  <title>Flap Tap</title>
   <meta name="theme-color" content="#2c80e2">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Sky Hopper">
+  <meta name="apple-mobile-web-app-title" content="Flap Tap">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" sizes="192x192" href="assets/icon-192.png">
+  <link rel="apple-touch-icon" sizes="512x512" href="assets/icon-512.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
   <style>
     :root {
       --glass: rgba(12, 20, 33, 0.38);
@@ -21,29 +26,38 @@
 
     html, body {
       margin: 0;
-      min-height: 100%;
-      background: radial-gradient(circle at top, #5ac6ff 0%, #2c80e2 38%, #1b335d 100%);
+      width: 100%;
+      height: 100%;
+      background: #87cfff;
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
+      overscroll-behavior: none;
+      touch-action: none;
     }
 
     body {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
     }
 
     .app {
-      width: 100%;
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 12px;
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+      background: #87cfff;
     }
 
     .stage {
-      position: relative;
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
       user-select: none;
       -webkit-user-select: none;
       -webkit-touch-callout: none;
@@ -52,9 +66,13 @@
     }
 
     canvas {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       display: block;
-      border-radius: 26px;
-      box-shadow: 0 26px 90px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.24);
+      border-radius: 0;
+      box-shadow: none;
       background: #87cfff;
     }
 
@@ -66,7 +84,7 @@
 
     .chips {
       position: absolute;
-      top: calc(14px * var(--ui-scale));
+      top: calc(env(safe-area-inset-top, 0px) + 10px * var(--ui-scale));
       left: calc(14px * var(--ui-scale));
       right: calc(14px * var(--ui-scale));
       display: flex;
@@ -155,19 +173,7 @@
     }
 
     .footer-note {
-      position: absolute;
-      bottom: max(18px, env(safe-area-inset-bottom));
-      left: 50%;
-      transform: translateX(-50%);
-      text-align: center;
-      font-size: 12px;
-      color: rgba(255,255,255,.70);
-      text-shadow: 0 2px 8px rgba(0,0,0,.35);
-      pointer-events: none;
-    }
-
-    @media (max-height: 740px) {
-      .footer-note { display: none; }
+      display: none;
     }
   </style>
 </head>
@@ -205,12 +211,21 @@
   <script>
     (() => {
       const ASSETS = {
-        background: "assets/background.png",
+        backgroundClouds: "assets/background_clouds.png",
+        backgroundMountains: "assets/background_mountains.png",
+        backgroundTrees: "assets/background_trees.png",
+        backgroundPlants: "assets/background_plants.png",
+        titleLogo: "assets/title.png",
+        crashLogo: "assets/CRASH.png",
+        feathers: "assets/feathers.png",
         bird: "assets/bird_sheet.png",
         ground: "assets/ground.png",
         pillarCap: "assets/pillar_cap.png",
         pillarBase: "assets/pillar_base.png",
-        pillarColumn: "assets/pillar_column.png"
+        pillarColumn: "assets/pillar_column.png",
+        music: "assets/audio/music.mp3",
+        flapSound: "assets/audio/flap.mp3",
+        crashSound: "assets/audio/Crash_main.mp3"
       };
 
       const canvas = document.getElementById("game");
@@ -235,7 +250,13 @@
       const BASE_WIDTH = 420;
 
       const img = {
-        background: new Image(),
+        backgroundClouds: new Image(),
+        backgroundMountains: new Image(),
+        backgroundTrees: new Image(),
+        backgroundPlants: new Image(),
+        titleLogo: new Image(),
+        crashLogo: new Image(),
+        feathers: new Image(),
         bird: new Image(),
         ground: new Image(),
         pillarCap: new Image(),
@@ -243,7 +264,13 @@
         pillarColumn: new Image()
       };
 
-      img.background.src = ASSETS.background;
+      img.backgroundClouds.src = ASSETS.backgroundClouds;
+      img.backgroundMountains.src = ASSETS.backgroundMountains;
+      img.backgroundTrees.src = ASSETS.backgroundTrees;
+      img.backgroundPlants.src = ASSETS.backgroundPlants;
+      img.titleLogo.src = ASSETS.titleLogo;
+      img.crashLogo.src = ASSETS.crashLogo;
+      img.feathers.src = ASSETS.feathers;
       img.bird.src = ASSETS.bird;
       img.ground.src = ASSETS.ground;
       img.pillarCap.src = ASSETS.pillarCap;
@@ -262,6 +289,11 @@
         bottomShift: 5,
         topOffset: -5,
         minShaftH: 45
+      };
+
+      const VISUAL_SCALE = {
+        bird: 1.875,
+        column: 1.5
       };
 
       const DIFFICULTY = {
@@ -288,8 +320,321 @@
         shake: 0,
         pipes: [],
         particles: [],
-        worldSpeed: 238
+        worldSpeed: 238,
+        titleIntro: 0,
+        titleExit: 0,
+        audioReady: false,
+        titleBird: {
+          x: -220,
+          y: 0,
+          vx: 230,
+          direction: 1,
+          pass: 0,
+          targetY: 0
+        },
+        gameplayIntro: 0,
+        gameplayIntroActive: false,
+        crashAnim: 0,
+        crashLock: 0,
+        crashExit: 0,
+        crashExiting: false,
+        crashFeathers: [],
+        hasStartedOnce: false,
+        columnsBehindGround: false
       };
+
+      let audioUnlocked = false;
+      let musicWanted = false;
+      let audioContext = null;
+
+      const decodedSounds = {
+        music: null,
+        flap: null,
+        crash: null
+      };
+
+      const pendingSoundLoads = {};
+      const pendingSoundFiles = {};
+
+      let musicSource = null;
+      let musicGain = null;
+      let musicStartedAt = 0;
+      let musicOffset = 0;
+
+      function getAudioContext() {
+        if (!audioContext) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return null;
+          audioContext = new AudioContextClass();
+        }
+
+        return audioContext;
+      }
+
+      function preloadSoundFile(name, src) {
+        if (pendingSoundFiles[name]) return pendingSoundFiles[name];
+
+        pendingSoundFiles[name] = fetch(src)
+          .then(response => {
+            if (!response.ok) throw new Error("Audio fetch failed");
+            return response.arrayBuffer();
+          })
+          .catch(() => null);
+
+        return pendingSoundFiles[name];
+      }
+
+      // Start downloading audio with the normal asset load.
+      // iOS still requires the first user gesture before playback, but this
+      // lets the files be ready to decode as soon as the first tap happens.
+      preloadSoundFile("music", ASSETS.music);
+      preloadSoundFile("flap", ASSETS.flapSound);
+      preloadSoundFile("crash", ASSETS.crashSound);
+
+      async function loadSoundBuffer(name, src) {
+        if (decodedSounds[name]) return decodedSounds[name];
+        if (pendingSoundLoads[name]) return pendingSoundLoads[name];
+
+        const ctxAudio = getAudioContext();
+        if (!ctxAudio) return null;
+
+        pendingSoundLoads[name] = preloadSoundFile(name, src)
+          .then(arrayBuffer => {
+            if (!arrayBuffer) throw new Error("No audio data");
+            return ctxAudio.decodeAudioData(arrayBuffer.slice(0));
+          })
+          .then(buffer => {
+            decodedSounds[name] = buffer;
+            return buffer;
+          })
+          .catch(() => null);
+
+        return pendingSoundLoads[name];
+      }
+
+      function playBuffer(name, volume = 1) {
+        if (!audioUnlocked || document.hidden) return;
+
+        const ctxAudio = getAudioContext();
+        const buffer = decodedSounds[name];
+
+        if (!ctxAudio || !buffer) return;
+
+        try {
+          const source = ctxAudio.createBufferSource();
+          const gain = ctxAudio.createGain();
+
+          source.buffer = buffer;
+          gain.gain.value = volume;
+
+          source.connect(gain);
+          gain.connect(ctxAudio.destination);
+
+          source.start(0);
+        } catch (err) {
+          // Ignore playback failures so the game never breaks.
+        }
+      }
+
+      function canPlayMusicNow() {
+        return audioUnlocked && musicWanted && !document.hidden;
+      }
+
+      function stopMusicBuffer(rememberPosition = true) {
+        const ctxAudio = getAudioContext();
+
+        if (musicSource) {
+          if (rememberPosition && ctxAudio && decodedSounds.music) {
+            musicOffset = (musicOffset + (ctxAudio.currentTime - musicStartedAt)) % decodedSounds.music.duration;
+          }
+
+          try {
+            musicSource.stop(0);
+          } catch (err) {
+            // Ignore already-stopped source errors.
+          }
+
+          try {
+            musicSource.disconnect();
+          } catch (err) {
+            // Ignore disconnect errors.
+          }
+
+          musicSource = null;
+          musicGain = null;
+        }
+      }
+
+      function startMusicBuffer() {
+        if (!canPlayMusicNow()) return;
+        if (musicSource) return;
+
+        const ctxAudio = getAudioContext();
+        const buffer = decodedSounds.music;
+
+        if (!ctxAudio || !buffer) return;
+
+        try {
+          const source = ctxAudio.createBufferSource();
+          const gain = ctxAudio.createGain();
+
+          source.buffer = buffer;
+          source.loop = true;
+          gain.gain.value = 0.45;
+
+          source.connect(gain);
+          gain.connect(ctxAudio.destination);
+
+          musicStartedAt = ctxAudio.currentTime;
+          source.start(0, musicOffset % buffer.duration);
+
+          musicSource = source;
+          musicGain = gain;
+        } catch (err) {
+          musicSource = null;
+          musicGain = null;
+        }
+      }
+
+      function playMusicIfAllowed() {
+        if (!canPlayMusicNow()) return;
+
+        const ctxAudio = getAudioContext();
+        if (ctxAudio && ctxAudio.state === "suspended") {
+          ctxAudio.resume().catch(() => {});
+        }
+
+        startMusicBuffer();
+      }
+
+      function keepTryingToStartMusic(durationMs = 1800) {
+        const startedAt = performance.now();
+
+        function attempt() {
+          if (!audioUnlocked || !musicWanted || document.hidden || musicSource) return;
+
+          playMusicIfAllowed();
+
+          if (!musicSource && performance.now() - startedAt < durationMs) {
+            requestAnimationFrame(attempt);
+          }
+        }
+
+        requestAnimationFrame(attempt);
+      }
+
+      function unlockWebAudioNow() {
+        const ctxAudio = getAudioContext();
+        if (!ctxAudio) return;
+
+        try {
+          if (ctxAudio.state === "suspended") {
+            ctxAudio.resume().catch(() => {});
+          }
+
+          // iOS can be picky with Web Audio. Starting a tiny silent buffer
+          // during the same tap reliably unlocks the audio pipeline without
+          // waiting for the next tap, crash sound, or any other sound event.
+          const silentBuffer = ctxAudio.createBuffer(1, 1, 22050);
+          const silentSource = ctxAudio.createBufferSource();
+          silentSource.buffer = silentBuffer;
+          silentSource.connect(ctxAudio.destination);
+          silentSource.start(0);
+        } catch (err) {
+          // Ignore unlock failures.
+        }
+      }
+
+      function unlockAndStartMusic() {
+        musicWanted = true;
+
+        if (!audioUnlocked) {
+          audioUnlocked = true;
+          unlockWebAudioNow();
+
+          // These are usually already downloading/decoding from the title screen.
+          // Calling them again is safe because the loader reuses the same promises.
+          loadSoundBuffer("flap", ASSETS.flapSound);
+          loadSoundBuffer("crash", ASSETS.crashSound);
+          loadSoundBuffer("music", ASSETS.music).then(() => {
+            playMusicIfAllowed();
+            keepTryingToStartMusic(1200);
+          });
+        } else {
+          unlockWebAudioNow();
+        }
+
+        playMusicIfAllowed();
+        keepTryingToStartMusic(1800);
+      }
+
+      function pauseMusic() {
+        stopMusicBuffer(true);
+      }
+
+      function handleAppVisibility() {
+        if (document.hidden) {
+          pauseMusic();
+
+          if (audioContext && audioContext.state === "running") {
+            audioContext.suspend().catch(() => {});
+          }
+        } else {
+          if (audioContext && audioContext.state === "suspended") {
+            audioContext.resume().then(() => {
+              playMusicIfAllowed();
+            }).catch(() => {});
+          } else {
+            playMusicIfAllowed();
+          }
+        }
+      }
+
+      document.addEventListener("visibilitychange", handleAppVisibility);
+      window.addEventListener("pagehide", pauseMusic);
+      window.addEventListener("blur", pauseMusic);
+      window.addEventListener("pageshow", playMusicIfAllowed);
+      window.addEventListener("focus", playMusicIfAllowed);
+
+      function playFlapSound() {
+        playBuffer("flap", 0.7);
+      }
+
+      function playFirstTapFlapSound() {
+        if (!audioUnlocked || document.hidden) return;
+
+        if (decodedSounds.flap) {
+          playBuffer("flap", 0.7);
+          playMusicIfAllowed();
+          keepTryingToStartMusic(1200);
+          return;
+        }
+
+        loadSoundBuffer("flap", ASSETS.flapSound).then(() => {
+          playBuffer("flap", 0.7);
+          playMusicIfAllowed();
+          keepTryingToStartMusic(1200);
+        });
+      }
+
+      function playCrashSound() {
+        playBuffer("crash", 0.9);
+      }
+
+      // Begin downloading and decoding audio during the title/loading phase.
+      // iOS will not allow sound output until the first tap, but it can often
+      // fetch and decode the files ahead of time. This gives music the best
+      // chance to start on the first tap instead of the second tap.
+      Promise.all([
+        loadSoundBuffer("flap", ASSETS.flapSound),
+        loadSoundBuffer("crash", ASSETS.crashSound),
+        loadSoundBuffer("music", ASSETS.music)
+      ]).then(() => {
+        state.audioReady = true;
+      }).catch(() => {
+        // Do not permanently block the game if audio fails to load.
+        state.audioReady = true;
+      });
 
       const bird = {
         x: 0,
@@ -351,12 +696,14 @@
 
       function resize() {
         const ratio = 9 / 16;
-        const maxW = Math.min(window.innerWidth - 24, 500);
-        let cssW = maxW;
+        const viewW = window.innerWidth;
+        const viewH = window.innerHeight;
+
+        let cssW = viewW;
         let cssH = cssW / ratio;
 
-        if (cssH > window.innerHeight - 24) {
-          cssH = window.innerHeight - 24;
+        if (cssH < viewH) {
+          cssH = viewH;
           cssW = cssH * ratio;
         }
 
@@ -385,37 +732,125 @@
         bird.angle = 0;
         bird.frame = 0;
         bird.frameTimer = 0;
-        bird.width = W * 0.105;
+        bird.width = W * 0.105 * VISUAL_SCALE.bird;
         bird.height = bird.width * 0.76;
       }
 
       function startFresh() {
-        state.mode = "ready";
         state.t = 0;
-        state.bgScroll = 0;
-        state.groundScroll = 0;
+        // Keep background and ground scroll positions between games.
+        // This prevents the world from visually resetting after a crash.
         state.spawnTimer = 0;
         state.score = 0;
         state.flash = 0;
         state.shake = 0;
+        state.columnsBehindGround = false;
         state.pipes = [];
         state.particles = [];
+        state.crashFeathers = [];
+        state.crashAnim = 0;
+        state.crashLock = 0;
+        state.crashExit = 0;
+        state.crashExiting = false;
+        state.gameplayIntro = 0;
+        state.gameplayIntroActive = false;
         resetBird();
         updateHud();
-        setPanel("Sky Hopper", "An original tap to fly arcade game", "Tap, click, or press Space to start", "Pass through the ancient columns.");
+        hidePanel();
+
+        if (state.hasStartedOnce) {
+          beginRun();
+          state.gameplayIntro = 0;
+          state.gameplayIntroActive = true;
+          bird.x = -bird.width * 1.2;
+          bird.y = H * 0.42;
+          bird.vy = 0;
+          bird.angle = 0.08;
+          return;
+        }
+
+        state.mode = "ready";
+        state.titleIntro = 0;
+        state.titleExit = 0;
+
+        // First title-screen pass begins off the right side and crosses
+        // the center of the logo before using alternate flight levels.
+        state.titleBird.x = W + 220;
+        state.titleBird.y = H * 0.42;
+        state.titleBird.vx = 230;
+        state.titleBird.direction = -1;
+        state.titleBird.pass = 0;
+        state.titleBird.targetY = H * 0.42;
       }
 
       function beginRun() {
+        state.hasStartedOnce = true;
+        state.columnsBehindGround = false;
+        state.crashExit = 0;
+        state.crashExiting = false;
         state.mode = "playing";
         hidePanel();
-        flap();
+
+        // The first tap starts the game and makes the bird flap.
+        // Play the flap sound here too so iOS has a real SFX event on the
+        // first interaction, which also helps the Web Audio music begin.
+        playFirstTapFlapSound();
+
+        bird.vy = -Math.max(325, H * 0.6);
+        bird.angle = -0.42;
+        burst(bird.x - 8, bird.y + 6, 4, "rgba(255,255,255,.42)", true);
+      }
+
+      function startTitleExitThenRun() {
+        if (state.mode !== "ready") return;
+        if (!state.audioReady) return;
+
+        state.mode = "titleExit";
+        state.titleExit = 0;
+
+        // Send the animated title bird rapidly offscreen in whichever
+        // direction it was already flying.
+        state.titleBird.vx = 980;
+
+        hidePanel();
+      }
+
+      function beginCrashExitThenStart() {
+        if (state.mode !== "gameover") return;
+        if (state.crashLock > 0 || state.crashExiting) return;
+
+        state.crashExiting = true;
+        state.crashExit = 0;
+        state.columnsBehindGround = true;
+
+        // Push all existing feathers offscreen instead of letting them vanish.
+        for (const f of state.crashFeathers) {
+          const dir = f.x < W / 2 ? -1 : 1;
+          f.vx += dir * rand(380, 760);
+          f.vy -= rand(30, 130);
+          f.vr += rand(-6, 6);
+        }
+
+        // Give on-screen columns an earthquake-style exit instead of
+        // letting them disappear when the next game starts.
+        for (const pipe of state.pipes) {
+          pipe.exitSeed = rand(0, Math.PI * 2);
+          pipe.exitLean = rand(-1, 1);
+        }
       }
 
       function gameOver() {
         if (state.mode === "gameover") return;
+        playCrashSound();
         state.mode = "gameover";
         state.flash = 0.28;
-        state.shake = 10;
+        state.shake = 12;
+        state.crashAnim = 0;
+        state.crashLock = 1.0;
+        state.crashExit = 0;
+        state.crashExiting = false;
+        state.crashFeathers = [];
+        hidePanel();
 
         if (state.score > state.best) {
           state.best = state.score;
@@ -423,11 +858,12 @@
         }
 
         updateHud();
-        setPanel("Crashed!", `Score: ${state.score} • Best: ${state.best}`, "Tap, click, or press Space to play again", "Tip: short rhythmic taps work best.");
+        spawnCrashFeathers();
         burst(bird.x, bird.y, 16, "#fff4c7");
       }
 
       function flap() {
+        playFlapSound();
         bird.vy = -Math.max(325, H * 0.6);
         bird.angle = -0.42;
         burst(bird.x - 8, bird.y + 6, 4, "rgba(255,255,255,.42)", true);
@@ -450,7 +886,7 @@
 
       function addPipe() {
         const gap = currentGap();
-        const width = clamp(W * 0.148, 56, 72);
+        const width = clamp(W * 0.148 * VISUAL_SCALE.column, 56 * VISUAL_SCALE.column, 72 * VISUAL_SCALE.column);
         const x = W + width + 20;
 
         const m = getPipeMetrics(width);
@@ -487,7 +923,9 @@
           width,
           topEnd: center - gap / 2,
           bottomStart: center + gap / 2,
-          scored: false
+          scored: false,
+          exitSeed: 0,
+          exitLean: 0
         });
       }
 
@@ -502,6 +940,45 @@
             maxLife: 1,
             size: rand(soft ? 2 : 3, soft ? 5 : 8),
             color
+          });
+        }
+      }
+
+      function spawnCrashFeathers() {
+        const logoW = Math.min(W * 0.81, H * 0.486);
+        const logoH = img.crashLogo.naturalWidth
+          ? logoW * (img.crashLogo.naturalHeight / img.crashLogo.naturalWidth)
+          : logoW * 0.34;
+        const cx = W / 2;
+        const cy = H * 0.38;
+
+        for (let i = 0; i < 16; i++) {
+          const angle = rand(-Math.PI, Math.PI);
+          const speed = rand(190, 520);
+          const fromLogoX = cx + rand(-logoW * 0.30, logoW * 0.30);
+          const fromLogoY = cy + rand(-logoH * 0.18, logoH * 0.20);
+
+          let vx = Math.cos(angle) * speed;
+          let vy = Math.sin(angle) * speed * 0.42 - rand(0, 52);
+
+          // Feathers can pop upward, but not too high or too fast.
+          vy = Math.max(vy, -H * 0.30);
+
+          state.crashFeathers.push({
+            x: fromLogoX,
+            y: fromLogoY,
+            vx,
+            vy,
+            baseRot: rand(-Math.PI, Math.PI),
+            rot: rand(-Math.PI, Math.PI),
+            vr: rand(-2.2, 2.2),
+            flutterPhase: rand(0, Math.PI * 2),
+            flutterSpeed: rand(3.8, 6.6),
+            flutterAmp: rand(34, 72),
+            tiltAmp: rand(0.34, 0.72),
+            drift: rand(-18, 18),
+            frame: Math.floor(rand(0, 4)),
+            size: rand(W * 0.075, W * 0.130)
           });
         }
       }
@@ -522,6 +999,39 @@
           p.vx *= 0.99;
         }
         state.particles = state.particles.filter(p => p.life > 0);
+      }
+
+      function updateCrashFeathers(dt) {
+        for (const f of state.crashFeathers) {
+          const phase = state.t * f.flutterSpeed + f.flutterPhase;
+          const flutter = Math.sin(phase) * f.flutterAmp;
+          const flutterNudge = Math.cos(phase * 0.72) * f.flutterAmp * 0.22;
+
+          f.x += (f.vx + flutter + f.drift + flutterNudge) * dt;
+          f.y += f.vy * dt;
+
+          if (state.crashExiting) {
+            // Exit animation: feathers sweep away faster, but still flutter.
+            f.vx *= 0.996;
+            f.vy += H * 0.08 * dt;
+            f.vy = Math.min(f.vy, H * 0.42);
+          } else {
+            // Slow feather fall with noticeable air resistance.
+            f.vy += H * 0.075 * dt;
+            f.vy = Math.min(f.vy, H * 0.18);
+            f.vx *= 0.955;
+            f.drift *= 0.992;
+          }
+
+          f.vr *= 0.985;
+          f.rot = f.baseRot + Math.sin(phase) * f.tiltAmp + Math.sin(phase * 0.43) * 0.18;
+          f.baseRot += f.vr * dt;
+        }
+
+        const margin = Math.max(W, H) * 0.55;
+        state.crashFeathers = state.crashFeathers.filter(f =>
+          f.x > -margin && f.x < W + margin && f.y > -margin && f.y < H + margin
+        );
       }
 
       function getPipeParts(pipe) {
@@ -559,25 +1069,45 @@
       }
 
       function collides(pipe) {
-        const bx = bird.x - bird.width * 0.24;
-        const by = bird.y - bird.height * 0.24;
-        const bw = bird.width * 0.48;
-        const bh = bird.height * 0.48;
+        const bx = bird.x - bird.width * 0.20;
+        const by = bird.y - bird.height * 0.20;
+        const bw = bird.width * 0.40;
+        const bh = bird.height * 0.40;
 
         const parts = getPipeParts(pipe);
-        const rects = [
+        const rawRects = [
           parts.top.base, parts.top.shaft, parts.top.cap,
           parts.bottom.cap, parts.bottom.shaft, parts.bottom.base
         ];
+
+        const rects = rawRects.map(r => {
+          const isShaft = r === parts.top.shaft || r === parts.bottom.shaft;
+          const insetX = Math.min(r.w * (isShaft ? 0.10 : 0.08), 10);
+          const insetY = isShaft ? 0 : Math.min(r.h * 0.05, 6);
+          return {
+            x: r.x + insetX,
+            y: r.y + insetY,
+            w: Math.max(1, r.w - insetX * 2),
+            h: Math.max(1, r.h - insetY * 2)
+          };
+        });
 
         return rects.some(r => r.h > 0 && hitRect(bx, by, bw, bh, r.x, r.y, r.w, r.h));
       }
 
       function input() {
+        unlockAndStartMusic();
+
         if (state.mode === "loading") return;
-        if (state.mode === "ready") return beginRun();
-        if (state.mode === "playing") return flap();
-        if (state.mode === "gameover") return startFresh();
+        if (state.mode === "ready") return startTitleExitThenRun();
+        if (state.mode === "titleExit") return;
+        if (state.mode === "playing") {
+          if (state.gameplayIntroActive) return;
+          return flap();
+        }
+        if (state.mode === "gameover") {
+          return beginCrashExitThenStart();
+        }
       }
 
       function update(dt) {
@@ -593,14 +1123,89 @@
         }
 
         if (state.mode === "ready") {
-          bird.y = H * 0.42 + Math.sin(state.t * 3.2) * 12;
-          bird.angle = Math.sin(state.t * 3.2) * 0.08;
+          state.titleIntro = Math.min(1, state.titleIntro + dt * 2.8);
+
+          const tb = state.titleBird;
+          tb.x += tb.vx * dt * tb.direction;
+          tb.y = tb.targetY + Math.sin(state.t * 2.6) * 10;
+
+          if (tb.direction === 1 && tb.x > W + 220) {
+            tb.direction = -1;
+            tb.x = W + 220;
+            tb.pass += 1;
+
+            // First pass is always across the center of the logo.
+            // Later passes alternate between higher and lower flight paths.
+            const levels = [
+              H * 0.42,
+              H * 0.34,
+              H * 0.50,
+              H * 0.38,
+              H * 0.56
+            ];
+            tb.targetY = levels[tb.pass % levels.length];
+          }
+
+          if (tb.direction === -1 && tb.x < -220) {
+            tb.direction = 1;
+            tb.x = -220;
+            tb.pass += 1;
+
+            const levels = [
+              H * 0.42,
+              H * 0.34,
+              H * 0.50,
+              H * 0.38,
+              H * 0.56
+            ];
+            tb.targetY = levels[tb.pass % levels.length];
+          }
+
           updateParticles(dt);
           return;
         }
 
-        if (state.mode === "gameover") {
+        if (state.mode === "titleExit") {
+          state.titleExit = Math.min(1, state.titleExit + dt * 5.2);
+
+          const tb = state.titleBird;
+          tb.x += tb.vx * dt * tb.direction;
+          tb.y = tb.targetY + Math.sin(state.t * 2.6) * 10;
+
           updateParticles(dt);
+
+          if (state.titleExit >= 1) {
+            beginRun();
+            state.hasStartedOnce = true;
+
+            // Gameplay bird enters from the left after the title clears,
+            // instead of simply appearing in place.
+            state.gameplayIntro = 0;
+            state.gameplayIntroActive = true;
+            bird.x = -bird.width * 1.2;
+            bird.y = H * 0.42;
+            bird.vy = 0;
+            bird.angle = 0.08;
+          }
+
+          return;
+        }
+
+        if (state.mode === "gameover") {
+          state.crashAnim = Math.min(1, state.crashAnim + dt);
+          state.crashLock = Math.max(0, state.crashLock - dt);
+
+          if (state.crashExiting) {
+            state.crashExit = Math.min(1, state.crashExit + dt * 3.8);
+          }
+
+          updateCrashFeathers(dt);
+          updateParticles(dt);
+
+          if (state.crashExiting && state.crashExit >= 1) {
+            startFresh();
+          }
+
           return;
         }
 
@@ -612,6 +1217,28 @@
         const speed = currentSpeed();
         state.bgScroll += dt * speed * 0.16;
         state.groundScroll += dt * speed;
+
+        if (state.gameplayIntroActive) {
+          state.gameplayIntro = Math.min(1, state.gameplayIntro + dt * 3.4);
+          const introT = 1 - Math.pow(1 - state.gameplayIntro, 3);
+          const startX = -bird.width * 1.2;
+          const targetX = Math.round(W * 0.24);
+          bird.x = startX + (targetX - startX) * introT;
+          bird.y = H * 0.42 + Math.sin(state.t * 4.2) * 6;
+          bird.vy = 0;
+          bird.angle = 0.08 + Math.sin(state.t * 4.0) * 0.05;
+
+          if (state.gameplayIntro >= 1) {
+            state.gameplayIntroActive = false;
+            bird.x = targetX;
+            bird.y = H * 0.42;
+            bird.vy = -Math.max(325, H * 0.6);
+            bird.angle = -0.42;
+          }
+
+          updateParticles(dt);
+          return;
+        }
 
         bird.vy += H * 2.05 * dt;
         bird.y += bird.vy * dt;
@@ -637,7 +1264,7 @@
           }
         }
 
-        state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -160);
+        state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -240);
 
         const ceiling = bird.height * 0.42;
         const floor = groundY - bird.height * 0.26 + 15;
@@ -679,9 +1306,39 @@
       }
 
       function drawBackground() {
+        // Draw from farthest layer to nearest layer:
+        // clouds -> mountains -> trees -> plants -> game elements.
+        // The foreground columns, bird, particles, and ground are drawn later.
         drawRepeatingImage(
-          img.background,
-          state.bgScroll,
+          img.backgroundClouds,
+          state.bgScroll * 0.16,
+          0,
+          H,
+          1,
+          1
+        );
+
+        drawRepeatingImage(
+          img.backgroundMountains,
+          state.bgScroll * 0.30,
+          0,
+          H,
+          1,
+          1
+        );
+
+        drawRepeatingImage(
+          img.backgroundTrees,
+          state.bgScroll * 0.50,
+          0,
+          H,
+          1,
+          1
+        );
+
+        drawRepeatingImage(
+          img.backgroundPlants,
+          state.bgScroll * 0.74,
           0,
           H,
           1,
@@ -732,23 +1389,61 @@
         ctx.restore();
       }
 
+
+      function smoothStep(t) {
+        return t * t * (3 - 2 * t);
+      }
+
+      function pipeExitOffset(pipe, isTop) {
+        if (state.mode !== "gameover" || !state.crashExiting) return { x: 0, y: 0, lean: 0 };
+
+        const e = smoothStep(clamp(state.crashExit, 0, 1));
+        const seed = pipe.exitSeed || 0;
+        const quake = Math.sin(state.t * 68 + seed) * (1 - e) * 9;
+        const fall = e * H * 0.62;
+        const lean = (pipe.exitLean || 0) * e * 10;
+
+        return {
+          x: quake + lean,
+          y: isTop ? -fall : fall,
+          lean
+        };
+      }
+
+      function offsetRect(rect, off) {
+        return {
+          x: rect.x + off.x,
+          y: rect.y + off.y,
+          w: rect.w,
+          h: rect.h
+        };
+      }
+
       function drawPipeShafts() {
         for (const pipe of state.pipes) {
           const parts = getPipeParts(pipe);
-          drawTiledColumn(parts.top.shaft, true);
-          drawTiledColumn(parts.bottom.shaft, false);
+          const topOff = pipeExitOffset(pipe, true);
+          const bottomOff = pipeExitOffset(pipe, false);
+
+          drawTiledColumn(offsetRect(parts.top.shaft, topOff), true);
+          drawTiledColumn(offsetRect(parts.bottom.shaft, bottomOff), false);
         }
       }
 
       function drawPipeDecorations() {
         for (const pipe of state.pipes) {
           const parts = getPipeParts(pipe);
+          const topOff = pipeExitOffset(pipe, true);
+          const bottomOff = pipeExitOffset(pipe, false);
 
-          drawFlippedImage(img.pillarBase, parts.top.base);
-          drawFlippedImage(img.pillarCap, parts.top.cap);
+          drawFlippedImage(img.pillarBase, offsetRect(parts.top.base, topOff));
+          drawFlippedImage(img.pillarCap, offsetRect(parts.top.cap, topOff));
 
-          ctx.drawImage(img.pillarBase, parts.bottom.base.x, parts.bottom.base.y, parts.bottom.base.w, parts.bottom.base.h);
-          ctx.drawImage(img.pillarCap, parts.bottom.cap.x, parts.bottom.cap.y, parts.bottom.cap.w, parts.bottom.cap.h);
+          const bottomBase = offsetRect(parts.bottom.base, bottomOff);
+          const bottomCap = offsetRect(parts.bottom.cap, bottomOff);
+
+          ctx.drawImage(img.pillarBase, bottomBase.x, bottomBase.y, bottomBase.w, bottomBase.h);
+          ctx.drawImage(img.pillarCap, bottomCap.x, bottomCap.y, bottomCap.w, bottomCap.h);
         }
       }
 
@@ -779,6 +1474,205 @@
         ctx.restore();
       }
 
+
+      function easeOutBack(t) {
+        const c1 = 1.70158;
+        const c3 = c1 + 1;
+        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+      }
+
+      function drawTitleBird(x, y, width, alpha) {
+        const frames = 4;
+        const frameW = img.bird.width / frames;
+        const sx = bird.frame * frameW;
+        const height = width * 0.76;
+
+        ctx.save();
+        ctx.globalAlpha *= alpha;
+        ctx.translate(x, y);
+        ctx.rotate(Math.sin(state.t * 2.8) * 0.09);
+        ctx.shadowColor = "rgba(0,0,0,.22)";
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 8;
+
+        ctx.drawImage(
+          img.bird,
+          sx + BOX.birdTrimX,
+          BOX.birdSheet.y - BOX.birdTrimY,
+          frameW - BOX.birdTrimX * 2,
+          BOX.birdSheet.h + BOX.birdTrimY * 2,
+          -width / 2,
+          -height / 2,
+          width,
+          height
+        );
+
+        ctx.restore();
+      }
+
+      function drawTitleSplash() {
+        if (state.mode !== "ready" && state.mode !== "titleExit") return;
+        if (!img.titleLogo || !img.titleLogo.naturalWidth) return;
+
+        const intro = clamp(state.titleIntro, 0, 1);
+        const exit = clamp(state.titleExit, 0, 1);
+        const inScale = 0.45 + easeOutBack(intro) * 0.55;
+        const pulse = 1 + Math.sin(state.t * 3.0) * 0.018;
+        const exitScale = 1 + exit * 0.42;
+        const alpha = Math.max(0, 1 - exit * 1.2);
+        const slideY = (1 - intro) * -H * 0.18 - exit * H * 0.20;
+        const logoW = Math.min(W * 0.86, H * 0.54);
+        const logoH = logoW * (img.titleLogo.naturalHeight / img.titleLogo.naturalWidth);
+        const logoX = W / 2;
+        const logoY = H * 0.42 + slideY;
+
+        // Soft animated glow behind title.
+        ctx.save();
+        ctx.globalAlpha = alpha * (0.095 + Math.sin(state.t * 2.4) * 0.018);
+        ctx.fillStyle = "rgba(255,235,145,1)";
+        ctx.beginPath();
+        ctx.ellipse(logoX, logoY + logoH * 0.18, logoW * 0.62, logoH * 0.40, 0, 0, Math.PI * 2);
+        ctx.filter = "blur(34px)";
+        ctx.fill();
+        ctx.filter = "none";
+        ctx.restore();
+
+        // Logo, centered on screen.
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(logoX, logoY);
+        ctx.scale(inScale * pulse * exitScale, inScale * pulse * exitScale);
+        ctx.rotate(Math.sin(state.t * 1.8) * 0.015);
+        ctx.drawImage(img.titleLogo, -logoW / 2, -logoH / 2, logoW, logoH);
+        ctx.restore();
+
+        // Animated bird flying in front of the title graphic.
+        const tb = state.titleBird;
+        // Title bird stays at the earlier title-screen size even though
+        // the gameplay bird was enlarged.
+        const titleBirdW = bird.width * 1.76;
+        const frames = 4;
+        const frameW = img.bird.width / frames;
+        const sx = bird.frame * frameW;
+        const titleBirdH = titleBirdW * 0.76;
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(tb.x, tb.y);
+
+        // Flip the bird based on travel direction.
+        // The sprite faces right by default, so scale(-1, 1) when flying left.
+        if (tb.direction === -1) {
+          ctx.scale(-1, 1);
+        }
+
+        ctx.rotate(Math.sin(state.t * 2.5) * 0.10);
+        ctx.shadowColor = "rgba(0,0,0,.24)";
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetY = 8;
+
+        ctx.drawImage(
+          img.bird,
+          sx + BOX.birdTrimX,
+          BOX.birdSheet.y - BOX.birdTrimY,
+          frameW - BOX.birdTrimX * 2,
+          BOX.birdSheet.h + BOX.birdTrimY * 2,
+          -titleBirdW / 2,
+          -titleBirdH / 2,
+          titleBirdW,
+          titleBirdH
+        );
+
+        ctx.restore();
+
+        // Small ambient sparkle/flap circles around the title.
+        if (state.mode === "ready" && Math.random() < 0.10) {
+          burst(
+            W * rand(0.28, 0.72),
+            H * rand(0.28, 0.56),
+            1,
+            "rgba(255,245,170,.38)",
+            true
+          );
+        }
+      }
+
+
+      function easeOutElastic(t) {
+        if (t === 0 || t === 1) return t;
+        const c4 = (2 * Math.PI) / 3;
+        return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * c4) + 1;
+      }
+
+      function drawCrashFeathers() {
+        if (!img.feathers || !img.feathers.naturalWidth) return;
+
+        const frames = 4;
+        const frameW = img.feathers.naturalWidth / frames;
+        const frameH = img.feathers.naturalHeight;
+
+        for (const f of state.crashFeathers) {
+          ctx.save();
+          ctx.translate(f.x, f.y);
+          ctx.rotate(f.rot);
+
+          const drawW = f.size;
+          const drawH = drawW * (frameH / frameW);
+
+          ctx.drawImage(
+            img.feathers,
+            f.frame * frameW,
+            0,
+            frameW,
+            frameH,
+            -drawW / 2,
+            -drawH / 2,
+            drawW,
+            drawH
+          );
+
+          ctx.restore();
+        }
+      }
+
+      function drawCrashSplash() {
+        if (state.mode !== "gameover") return;
+        if (!img.crashLogo || !img.crashLogo.naturalWidth) return;
+
+        const t = clamp(state.crashAnim, 0, 1);
+        const exit = clamp(state.crashExit, 0, 1);
+        const crashIn = easeOutElastic(Math.min(1, t * 1.12));
+        const settleShake = state.crashLock > 0 ? Math.sin(state.t * 72) * (1 - crashIn) * 0.10 : Math.sin(state.t * 2.2) * 0.012;
+        const exitEase = exit * exit * (3 - 2 * exit);
+
+        const logoW = Math.min(W * 0.81, H * 0.486);
+        const logoH = logoW * (img.crashLogo.naturalHeight / img.crashLogo.naturalWidth);
+        const logoX = W / 2 + exitEase * W * 1.25;
+        const logoY = H * 0.38 - exitEase * H * 0.12;
+
+        // Feathers are drawn first so they appear to burst from behind the logo.
+        drawCrashFeathers();
+
+        ctx.save();
+        ctx.translate(logoX, logoY);
+        ctx.rotate(settleShake);
+        ctx.scale((0.25 + crashIn * 0.75) * (1 - exitEase * 0.22), (0.25 + crashIn * 0.75) * (1 - exitEase * 0.22));
+
+        ctx.shadowColor = "rgba(0,0,0,.32)";
+        ctx.shadowBlur = 22;
+        ctx.shadowOffsetY = 10;
+
+        ctx.drawImage(
+          img.crashLogo,
+          -logoW / 2,
+          -logoH / 2,
+          logoW,
+          logoH
+        );
+
+        ctx.restore();
+      }
+
       function drawParticles() {
         for (const p of state.particles) {
           ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
@@ -790,7 +1684,24 @@
         ctx.globalAlpha = 1;
       }
 
+
+      function groundQuakeOffset() {
+        if (state.mode !== "gameover" || !state.crashExiting) return { x: 0, y: 0 };
+
+        const e = clamp(state.crashExit, 0, 1);
+        const fade = 1 - e;
+        return {
+          x: Math.sin(state.t * 82) * 5 * fade + Math.sin(state.t * 131) * 2 * fade,
+          y: Math.cos(state.t * 96) * 3 * fade
+        };
+      }
+
       function drawGround() {
+        const quake = groundQuakeOffset();
+
+        ctx.save();
+        ctx.translate(quake.x, quake.y);
+
         drawRepeatingCrop(
           img.ground,
           BOX.groundCrop.x,
@@ -802,6 +1713,8 @@
           groundH,
           1
         );
+
+        ctx.restore();
       }
 
       function drawOverlay() {
@@ -820,11 +1733,27 @@
         }
 
         drawBackground();
-        drawPipeShafts();
-        drawGround();
-        drawPipeDecorations();
-        drawBird();
+
+        if (state.columnsBehindGround) {
+          // During the crash-exit earthquake animation, move all column
+          // pieces behind the ground so they disappear into/behind the terrain.
+          drawPipeShafts();
+          drawPipeDecorations();
+          drawGround();
+        } else {
+          // Normal gameplay layering.
+          drawPipeShafts();
+          drawGround();
+          drawPipeDecorations();
+        }
+
+        if (state.mode === "playing" || state.mode === "gameover") {
+          drawBird();
+        }
+
         drawParticles();
+        drawTitleSplash();
+        drawCrashSplash();
         drawOverlay();
 
         if (state.shake > 0) ctx.restore();
@@ -876,7 +1805,7 @@
 
       resize();
       updateHud();
-      setPanel("Loading...", "Preparing the artwork and game world", "One moment");
+      hidePanel();
       readyWhenLoaded();
       requestAnimationFrame(loop);
     })();
