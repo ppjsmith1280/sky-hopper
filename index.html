@@ -27,27 +27,33 @@
     html, body {
       margin: 0;
       width: 100%;
+      min-width: 100%;
       height: 100%;
+      min-height: 100%;
       background: #87cfff;
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
       overscroll-behavior: none;
       touch-action: none;
+      -webkit-text-size-adjust: 100%;
     }
 
     body {
+      position: fixed;
+      inset: 0;
       width: 100vw;
-      height: 100vh;
-      height: 100dvh;
+      height: var(--app-height, 100vh);
+      min-height: var(--app-height, 100vh);
+      background: #87cfff;
     }
 
     .app {
       position: fixed;
-      inset: 0;
+      left: 0;
+      top: 0;
       width: 100vw;
-      height: 100vh;
-      height: 100dvh;
+      height: var(--app-height, 100vh);
       padding: 0;
       margin: 0;
       overflow: hidden;
@@ -56,7 +62,10 @@
 
     .stage {
       position: fixed;
-      inset: 0;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: var(--app-height, 100vh);
       overflow: hidden;
       user-select: none;
       -webkit-user-select: none;
@@ -69,11 +78,12 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      transform: translate(-50%, -50%);
+      transform: translate3d(-50%, -50%, 0);
       display: block;
       border-radius: 0;
       box-shadow: none;
       background: #87cfff;
+      will-change: width, height;
     }
 
     .hud {
@@ -694,23 +704,83 @@
         ui.best.textContent = String(state.best);
       }
 
+      function getViewportSize() {
+        // iOS home-screen apps can report window.innerHeight inconsistently
+        // during launch, app switching, and orientation changes. visualViewport
+        // is more reliable when available, with screen fallback for standalone.
+        const vv = window.visualViewport;
+        let viewW = Math.round(vv?.width || window.innerWidth || document.documentElement.clientWidth || screen.width);
+        let viewH = Math.round(vv?.height || window.innerHeight || document.documentElement.clientHeight || screen.height);
+
+        const standalone = window.navigator.standalone === true ||
+          window.matchMedia("(display-mode: standalone)").matches;
+
+        if (standalone && /iPhone|iPod/i.test(navigator.userAgent || "")) {
+          const sw = Math.min(screen.width || viewW, screen.height || viewH);
+          const sh = Math.max(screen.width || viewW, screen.height || viewH);
+
+          if (Math.abs(window.orientation || 0) === 90) {
+            viewW = Math.max(viewW, sh);
+            viewH = Math.max(viewH, sw);
+          } else {
+            viewW = Math.max(viewW, sw);
+            viewH = Math.max(viewH, sh);
+          }
+        }
+
+        viewW = Math.max(1, viewW);
+        viewH = Math.max(1, viewH);
+
+        document.documentElement.style.setProperty("--app-height", viewH + "px");
+        document.body.style.setProperty("--app-height", viewH + "px");
+
+        return { viewW, viewH };
+      }
+
       function resize() {
         const ratio = 9 / 16;
-        const viewW = window.innerWidth;
-        const viewH = window.innerHeight;
+        const { viewW, viewH } = getViewportSize();
 
-        let cssW = viewW;
-        let cssH = cssW / ratio;
+        const standalone = window.navigator.standalone === true ||
+          window.matchMedia("(display-mode: standalone)").matches;
+        const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+        const phoneSized = Math.min(viewW, viewH) <= 600;
 
-        if (cssH < viewH) {
-          cssH = viewH;
-          cssW = cssH * ratio;
+        // On iPhone/home-screen, cover the screen so no browser/body background
+        // can appear as a bottom bar. On desktop, contain the playfield inside
+        // a fixed iPhone-like area with blue around it.
+        const fillPhoneScreen = phoneSized && (standalone || coarsePointer);
+        let cssW;
+        let cssH;
+
+        if (fillPhoneScreen) {
+          cssW = viewW;
+          cssH = cssW / ratio;
+
+          if (cssH < viewH) {
+            cssH = viewH;
+            cssW = cssH * ratio;
+          }
+        } else {
+          const maxGameW = 430;
+          const maxGameH = Math.min(932, viewH);
+
+          cssW = Math.min(viewW, maxGameW, maxGameH * ratio);
+          cssH = cssW / ratio;
+
+          if (cssH > viewH) {
+            cssH = viewH;
+            cssW = cssH * ratio;
+          }
         }
+
+        cssW = Math.round(cssW);
+        cssH = Math.round(cssH);
 
         canvas.style.width = cssW + "px";
         canvas.style.height = cssH + "px";
-        canvas.width = Math.round(cssW * DPR);
-        canvas.height = Math.round(cssH * DPR);
+        canvas.width = Math.max(1, Math.round(cssW * DPR));
+        canvas.height = Math.max(1, Math.round(cssH * DPR));
 
         ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
         ctx.imageSmoothingEnabled = true;
@@ -721,6 +791,8 @@
         groundH = Math.round(H * 0.115);
         groundY = H - groundH + 1;
 
+        stageEl.style.width = viewW + "px";
+        stageEl.style.height = viewH + "px";
         stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
         resetBird();
       }
@@ -1782,7 +1854,39 @@
         requestAnimationFrame(loop);
       }
 
-      window.addEventListener("resize", resize);
+      let resizeQueued = false;
+      function queueResize() {
+        if (resizeQueued) return;
+        resizeQueued = true;
+        requestAnimationFrame(() => {
+          resizeQueued = false;
+          resize();
+        });
+      }
+
+      window.addEventListener("resize", queueResize);
+      window.addEventListener("orientationchange", () => {
+        queueResize();
+        setTimeout(queueResize, 120);
+        setTimeout(queueResize, 420);
+        setTimeout(queueResize, 900);
+      });
+
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", queueResize);
+        window.visualViewport.addEventListener("scroll", queueResize);
+      }
+
+      window.addEventListener("pageshow", () => {
+        queueResize();
+        setTimeout(queueResize, 250);
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+          queueResize();
+          setTimeout(queueResize, 250);
+        }
+      });
 
       window.addEventListener("keydown", e => {
         if (e.code === "Space" || e.code === "ArrowUp") {
