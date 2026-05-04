@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1.0">
   <title>Flap Tap</title>
   <meta name="theme-color" content="#2c80e2">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -26,31 +26,30 @@
 
     html, body {
       margin: 0;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
       background: #87cfff;
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
       overscroll-behavior: none;
       touch-action: none;
+      position: fixed;
+      inset: 0;
     }
 
     body {
-      position: fixed;
-      inset: 0;
       width: 100vw;
-      height: var(--app-height, 100vh);
-      min-height: var(--app-height, 100vh);
-      -webkit-text-size-adjust: 100%;
+      height: 100vh;
+      height: 100dvh;
     }
 
     .app {
       position: fixed;
-      left: 0;
-      top: 0;
-      width: 100vw;
-      height: var(--app-height, 100vh);
+      inset: 0;
+      width: 100%;
+      height: 100%;
       padding: 0;
       margin: 0;
       overflow: hidden;
@@ -59,10 +58,9 @@
 
     .stage {
       position: fixed;
-      left: 0;
-      top: 0;
-      width: 100vw;
-      height: var(--app-height, 100vh);
+      inset: 0;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
       user-select: none;
       -webkit-user-select: none;
@@ -73,10 +71,9 @@
 
     canvas {
       position: absolute;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       display: block;
       border-radius: 0;
       box-shadow: none;
@@ -112,6 +109,8 @@
 
     .chip .label {
       display: block;
+      width: 100%;
+      text-align: center;
       font-size: calc(11px * var(--ui-scale));
       letter-spacing: .12em;
       text-transform: uppercase;
@@ -702,107 +701,31 @@
         ui.best.textContent = String(state.best);
       }
 
-      function getCssSafeAreaBottom() {
-        const probe = document.createElement("div");
-        probe.style.position = "fixed";
-        probe.style.left = "0";
-        probe.style.bottom = "0";
-        probe.style.height = "env(safe-area-inset-bottom, 0px)";
-        probe.style.visibility = "hidden";
-        document.body.appendChild(probe);
-        const value = parseFloat(getComputedStyle(probe).height) || 0;
-        probe.remove();
-        return value;
-      }
-
-      function getViewportSize() {
-        const vv = window.visualViewport;
-        let viewW = Math.round(vv?.width || window.innerWidth || document.documentElement.clientWidth || screen.width || 420);
-        let viewH = Math.round(vv?.height || window.innerHeight || document.documentElement.clientHeight || screen.height || 740);
-
-        const ua = navigator.userAgent || "";
-        const isIOS = /iPhone|iPod|iPad/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-        const portrait = viewH >= viewW;
-
-        // This is the key iPhone PWA fix. On some home-screen launches,
-        // innerHeight/visualViewport.height stops above the home-indicator safe
-        // area, so the blue body background shows through at the bottom. The
-        // game itself should use the full physical CSS screen height instead.
-        if (isIOS && portrait && screen && screen.height) {
-          const screenW = Math.min(screen.width || viewW, screen.height || viewH);
-          const screenH = Math.max(screen.width || viewW, screen.height || viewH);
-          viewW = Math.max(viewW, Math.round(screenW));
-          viewH = Math.max(viewH, Math.round(screenH));
-        }
-
-        // Extra fallback for devices that expose the safe-area inset but still
-        // report a short viewport.
-        const safeBottom = getCssSafeAreaBottom();
-        if (safeBottom > 0) {
-          viewH = Math.max(viewH, Math.round((vv?.height || window.innerHeight || viewH) + safeBottom));
-        }
-
-        document.documentElement.style.setProperty("--app-height", viewH + "px");
-        document.body.style.setProperty("--app-height", viewH + "px");
-
-        return { viewW, viewH };
-      }
-
       function resize() {
         const ratio = 9 / 16;
-        const { viewW, viewH } = getViewportSize();
-        const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
-        const phoneSized = Math.min(viewW, viewH) <= 600;
-        const fillPhoneScreen = coarsePointer && phoneSized;
 
-        let cssW;
-        let cssH;
-        let stageLeft;
-        let stageTop;
+        // iOS home-screen apps can report window.innerHeight too short on launch.
+        // Use the largest reliable height available so the canvas continues
+        // behind the bottom safe-area instead of exposing the blue page background.
+        let viewW = window.innerWidth || document.documentElement.clientWidth || screen.width;
+        let viewH = Math.max(
+          window.innerHeight || 0,
+          document.documentElement.clientHeight || 0,
+          screen.height || 0
+        );
 
-        if (fillPhoneScreen) {
-          // Keep the original zoomed/cropped phone look from your attached file.
-          // It covers the full iPhone screen instead of fitting inside it.
-          cssW = viewW;
-          cssH = cssW / ratio;
+        let cssW = viewW;
+        let cssH = cssW / ratio;
 
-          if (cssH < viewH) {
-            cssH = viewH;
-            cssW = cssH * ratio;
-          }
-
-          stageLeft = Math.round((viewW - cssW) / 2);
-          stageTop = 0;
-        } else {
-          // Desktop/tablet preview: keep an iPhone-shaped playfield centered on
-          // the blue page, and keep the HUD inside that playfield.
-          const maxGameW = 430;
-          const maxGameH = Math.min(932, viewH);
-
-          cssW = Math.min(viewW, maxGameW, maxGameH * ratio);
-          cssH = cssW / ratio;
-
-          if (cssH > viewH) {
-            cssH = viewH;
-            cssW = cssH * ratio;
-          }
-
-          stageLeft = Math.round((viewW - cssW) / 2);
-          stageTop = Math.round((viewH - cssH) / 2);
+        if (cssH < viewH) {
+          cssH = viewH;
+          cssW = cssH * ratio;
         }
-
-        cssW = Math.round(cssW);
-        cssH = Math.round(cssH);
-
-        stageEl.style.left = stageLeft + "px";
-        stageEl.style.top = stageTop + "px";
-        stageEl.style.width = cssW + "px";
-        stageEl.style.height = cssH + "px";
 
         canvas.style.width = cssW + "px";
         canvas.style.height = cssH + "px";
-        canvas.width = Math.max(1, Math.round(cssW * DPR));
-        canvas.height = Math.max(1, Math.round(cssH * DPR));
+        canvas.width = Math.round(cssW * DPR);
+        canvas.height = Math.round(cssH * DPR);
 
         ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
         ctx.imageSmoothingEnabled = true;
@@ -815,6 +738,15 @@
 
         stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
         resetBird();
+      }
+
+      function forceResize() {
+        resize();
+        setTimeout(resize, 50);
+        setTimeout(resize, 200);
+        setTimeout(resize, 500);
+        setTimeout(resize, 1000);
+        setTimeout(resize, 1500);
       }
 
       function resetBird() {
@@ -1874,36 +1806,15 @@
         requestAnimationFrame(loop);
       }
 
-      let resizeQueued = false;
-      function queueResize() {
-        if (resizeQueued) return;
-        resizeQueued = true;
-        requestAnimationFrame(() => {
-          resizeQueued = false;
-          resize();
-        });
-      }
-
-      function scheduleIOSResizes() {
-        queueResize();
-        setTimeout(queueResize, 80);
-        setTimeout(queueResize, 250);
-        setTimeout(queueResize, 700);
-        setTimeout(queueResize, 1200);
-      }
-
-      window.addEventListener("resize", scheduleIOSResizes);
-      window.addEventListener("orientationchange", scheduleIOSResizes);
+      window.addEventListener("resize", forceResize);
+      window.addEventListener("orientationchange", () => setTimeout(forceResize, 300));
+      window.addEventListener("pageshow", forceResize);
+      window.addEventListener("load", forceResize);
 
       if (window.visualViewport) {
-        window.visualViewport.addEventListener("resize", scheduleIOSResizes);
-        window.visualViewport.addEventListener("scroll", scheduleIOSResizes);
+        window.visualViewport.addEventListener("resize", forceResize);
+        window.visualViewport.addEventListener("scroll", forceResize);
       }
-
-      window.addEventListener("pageshow", scheduleIOSResizes);
-      document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) scheduleIOSResizes();
-      });
 
       window.addEventListener("keydown", e => {
         if (e.code === "Space" || e.code === "ArrowUp") {
@@ -1924,7 +1835,7 @@
         }, { passive: false });
       });
 
-      resize();
+      forceResize();
       updateHud();
       hidePanel();
       readyWhenLoaded();
