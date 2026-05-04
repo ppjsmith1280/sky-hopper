@@ -15,7 +15,6 @@
   <link rel="icon" type="image/png" sizes="512x512" href="assets/icon-512.png">
   <style>
     :root {
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
       --glass: rgba(12, 20, 33, 0.38);
       --glass-strong: rgba(10, 16, 28, 0.62);
       --text: #ffffff;
@@ -38,17 +37,20 @@
     }
 
     body {
+      position: fixed;
+      inset: 0;
       width: 100vw;
-      height: 100vh;
-      height: 100dvh;
+      height: var(--app-height, 100vh);
+      min-height: var(--app-height, 100vh);
+      -webkit-text-size-adjust: 100%;
     }
 
     .app {
       position: fixed;
-      inset: 0;
+      left: 0;
+      top: 0;
       width: 100vw;
-      height: 100vh;
-      height: 100dvh;
+      height: var(--app-height, 100vh);
       padding: 0;
       margin: 0;
       overflow: hidden;
@@ -57,7 +59,10 @@
 
     .stage {
       position: fixed;
-      inset: 0;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: var(--app-height, 100vh);
       overflow: hidden;
       user-select: none;
       -webkit-user-select: none;
@@ -68,9 +73,10 @@
 
     canvas {
       position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
       display: block;
       border-radius: 0;
       box-shadow: none;
@@ -102,16 +108,10 @@
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
       min-width: calc(74px * var(--ui-scale));
       text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
     }
 
     .chip .label {
       display: block;
-      width: 100%;
-      text-align: center;
       font-size: calc(11px * var(--ui-scale));
       letter-spacing: .12em;
       text-transform: uppercase;
@@ -242,8 +242,6 @@
       ctx.imageSmoothingQuality = "high";
 
       const stageEl = document.getElementById("stage");
-      const hudEl = document.querySelector(".hud");
-      const chipsEl = document.querySelector(".chips");
       const tapZone = document.getElementById("tapZone");
 
       const ui = {
@@ -704,71 +702,80 @@
         ui.best.textContent = String(state.best);
       }
 
-      function cssPx(varName) {
-        const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
-        const value = parseFloat(raw);
-        return Number.isFinite(value) ? value : 0;
+      function getCssSafeAreaBottom() {
+        const probe = document.createElement("div");
+        probe.style.position = "fixed";
+        probe.style.left = "0";
+        probe.style.bottom = "0";
+        probe.style.height = "env(safe-area-inset-bottom, 0px)";
+        probe.style.visibility = "hidden";
+        document.body.appendChild(probe);
+        const value = parseFloat(getComputedStyle(probe).height) || 0;
+        probe.remove();
+        return value;
       }
 
-      function getViewSize() {
-        const appEl = document.querySelector(".app");
-        const stageRect = stageEl.getBoundingClientRect();
-        const appRect = appEl.getBoundingClientRect();
+      function getViewportSize() {
         const vv = window.visualViewport;
+        let viewW = Math.round(vv?.width || window.innerWidth || document.documentElement.clientWidth || screen.width || 420);
+        let viewH = Math.round(vv?.height || window.innerHeight || document.documentElement.clientHeight || screen.height || 740);
 
-        const viewW = Math.ceil(Math.max(
-          stageRect.width || 0,
-          appRect.width || 0,
-          vv?.width || 0,
-          window.innerWidth || 0,
-          document.documentElement.clientWidth || 0
-        ));
+        const ua = navigator.userAgent || "";
+        const isIOS = /iPhone|iPod|iPad/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+        const portrait = viewH >= viewW;
 
-        const viewH = Math.ceil(Math.max(
-          stageRect.height || 0,
-          appRect.height || 0,
-          vv?.height || 0,
-          window.innerHeight || 0,
-          document.documentElement.clientHeight || 0
-        ));
+        // This is the key iPhone PWA fix. On some home-screen launches,
+        // innerHeight/visualViewport.height stops above the home-indicator safe
+        // area, so the blue body background shows through at the bottom. The
+        // game itself should use the full physical CSS screen height instead.
+        if (isIOS && portrait && screen && screen.height) {
+          const screenW = Math.min(screen.width || viewW, screen.height || viewH);
+          const screenH = Math.max(screen.width || viewW, screen.height || viewH);
+          viewW = Math.max(viewW, Math.round(screenW));
+          viewH = Math.max(viewH, Math.round(screenH));
+        }
 
-        return { viewW: Math.max(1, viewW), viewH: Math.max(1, viewH) };
+        // Extra fallback for devices that expose the safe-area inset but still
+        // report a short viewport.
+        const safeBottom = getCssSafeAreaBottom();
+        if (safeBottom > 0) {
+          viewH = Math.max(viewH, Math.round((vv?.height || window.innerHeight || viewH) + safeBottom));
+        }
+
+        document.documentElement.style.setProperty("--app-height", viewH + "px");
+        document.body.style.setProperty("--app-height", viewH + "px");
+
+        return { viewW, viewH };
       }
 
       function resize() {
         const ratio = 9 / 16;
-        const { viewW, viewH } = getViewSize();
+        const { viewW, viewH } = getViewportSize();
         const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
         const phoneSized = Math.min(viewW, viewH) <= 600;
-        const phoneLayout = coarsePointer && phoneSized;
-        const safeBottom = cssPx("--safe-bottom");
+        const fillPhoneScreen = coarsePointer && phoneSized;
 
         let cssW;
         let cssH;
+        let stageLeft;
+        let stageTop;
 
-        if (phoneLayout) {
-          // Keep the original zoomed/cropped iPhone look, but make the canvas
-          // extend past the bottom safe area so the body background never shows.
-          const fillH = viewH + safeBottom + 8;
+        if (fillPhoneScreen) {
+          // Keep the original zoomed/cropped phone look from your attached file.
+          // It covers the full iPhone screen instead of fitting inside it.
           cssW = viewW;
           cssH = cssW / ratio;
 
-          if (cssH < fillH) {
-            cssH = fillH;
+          if (cssH < viewH) {
+            cssH = viewH;
             cssW = cssH * ratio;
           }
 
-          canvas.style.left = "50%";
-          canvas.style.top = "0px";
-          canvas.style.transform = "translateX(-50%)";
-
-          hudEl.style.left = "0px";
-          hudEl.style.top = "0px";
-          hudEl.style.width = viewW + "px";
-          hudEl.style.height = viewH + "px";
+          stageLeft = Math.round((viewW - cssW) / 2);
+          stageTop = 0;
         } else {
-          // Desktop/tablet: contain the iPhone-shaped playfield so the game does
-          // not stretch, and keep the HUD over the playfield instead of the blue background.
+          // Desktop/tablet preview: keep an iPhone-shaped playfield centered on
+          // the blue page, and keep the HUD inside that playfield.
           const maxGameW = 430;
           const maxGameH = Math.min(932, viewH);
 
@@ -780,20 +787,17 @@
             cssW = cssH * ratio;
           }
 
-          canvas.style.left = "50%";
-          canvas.style.top = "50%";
-          canvas.style.transform = "translate(-50%, -50%)";
-
-          const hudLeft = Math.round((viewW - cssW) / 2);
-          const hudTop = Math.round((viewH - cssH) / 2);
-          hudEl.style.left = hudLeft + "px";
-          hudEl.style.top = hudTop + "px";
-          hudEl.style.width = cssW + "px";
-          hudEl.style.height = cssH + "px";
+          stageLeft = Math.round((viewW - cssW) / 2);
+          stageTop = Math.round((viewH - cssH) / 2);
         }
 
-        cssW = Math.ceil(cssW);
-        cssH = Math.ceil(cssH);
+        cssW = Math.round(cssW);
+        cssH = Math.round(cssH);
+
+        stageEl.style.left = stageLeft + "px";
+        stageEl.style.top = stageTop + "px";
+        stageEl.style.width = cssW + "px";
+        stageEl.style.height = cssH + "px";
 
         canvas.style.width = cssW + "px";
         canvas.style.height = cssH + "px";
@@ -809,8 +813,6 @@
         groundH = Math.round(H * 0.115);
         groundY = H - groundH + 1;
 
-        stageEl.style.width = viewW + "px";
-        stageEl.style.height = viewH + "px";
         stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
         resetBird();
       }
@@ -1882,31 +1884,25 @@
         });
       }
 
-      window.addEventListener("resize", queueResize);
-      window.addEventListener("orientationchange", () => {
+      function scheduleIOSResizes() {
         queueResize();
-        setTimeout(queueResize, 120);
-        setTimeout(queueResize, 420);
-        setTimeout(queueResize, 900);
-      });
-
-      if (window.visualViewport) {
-        window.visualViewport.addEventListener("resize", queueResize);
-        window.visualViewport.addEventListener("scroll", queueResize);
-      }
-
-      window.addEventListener("pageshow", () => {
-        queueResize();
+        setTimeout(queueResize, 80);
         setTimeout(queueResize, 250);
         setTimeout(queueResize, 700);
-      });
+        setTimeout(queueResize, 1200);
+      }
 
+      window.addEventListener("resize", scheduleIOSResizes);
+      window.addEventListener("orientationchange", scheduleIOSResizes);
+
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", scheduleIOSResizes);
+        window.visualViewport.addEventListener("scroll", scheduleIOSResizes);
+      }
+
+      window.addEventListener("pageshow", scheduleIOSResizes);
       document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) {
-          queueResize();
-          setTimeout(queueResize, 250);
-          setTimeout(queueResize, 700);
-        }
+        if (!document.hidden) scheduleIOSResizes();
       });
 
       window.addEventListener("keydown", e => {
@@ -1929,9 +1925,6 @@
       });
 
       resize();
-      setTimeout(queueResize, 80);
-      setTimeout(queueResize, 300);
-      setTimeout(queueResize, 900);
       updateHud();
       hidePanel();
       readyWhenLoaded();
