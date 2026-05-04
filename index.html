@@ -43,8 +43,8 @@
       position: fixed;
       inset: 0;
       width: 100vw;
-      height: var(--app-height, 100vh);
-      min-height: var(--app-height, 100vh);
+      height: var(--app-height, 100dvh);
+      min-height: var(--app-height, 100dvh);
       background: #87cfff;
     }
 
@@ -53,7 +53,7 @@
       left: 0;
       top: 0;
       width: 100vw;
-      height: var(--app-height, 100vh);
+      height: var(--app-height, 100dvh);
       padding: 0;
       margin: 0;
       overflow: hidden;
@@ -65,7 +65,7 @@
       left: 0;
       top: 0;
       width: 100vw;
-      height: var(--app-height, 100vh);
+      height: var(--app-height, 100dvh);
       overflow: hidden;
       user-select: none;
       -webkit-user-select: none;
@@ -78,20 +78,20 @@
       position: absolute;
       left: 50%;
       top: 50%;
-      transform: translate3d(-50%, -50%, 0);
+      transform: translate(-50%, -50%);
       display: block;
       border-radius: 0;
       box-shadow: none;
       background: #87cfff;
-      will-change: width, height;
     }
 
     .hud {
       position: absolute;
-      left: var(--game-left, 0px);
-      top: var(--game-top, 0px);
+      left: 50%;
+      top: 50%;
       width: var(--game-width, 100vw);
-      height: var(--game-height, var(--app-height, 100vh));
+      height: var(--game-height, var(--app-height, 100dvh));
+      transform: translate3d(-50%, -50%, 0);
       pointer-events: none;
       overflow: hidden;
     }
@@ -115,6 +115,10 @@
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
       min-width: calc(74px * var(--ui-scale));
       text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
     }
 
     .chip .label {
@@ -184,10 +188,7 @@
 
     .tap-zone {
       position: absolute;
-      left: var(--game-left, 0px);
-      top: var(--game-top, 0px);
-      width: var(--game-width, 100vw);
-      height: var(--game-height, var(--app-height, 100vh));
+      inset: 0;
       z-index: 4;
       background: transparent;
     }
@@ -715,27 +716,22 @@
       }
 
       function getViewportSize() {
-        // iOS home-screen apps can report window.innerHeight inconsistently
-        // during launch, app switching, and orientation changes. visualViewport
-        // is more reliable when available, with screen fallback for standalone.
         const vv = window.visualViewport;
         let viewW = Math.round(vv?.width || window.innerWidth || document.documentElement.clientWidth || screen.width);
         let viewH = Math.round(vv?.height || window.innerHeight || document.documentElement.clientHeight || screen.height);
 
         const standalone = window.navigator.standalone === true ||
           window.matchMedia("(display-mode: standalone)").matches;
+        const isIPhone = /iPhone|iPod/i.test(navigator.userAgent || "");
 
-        if (standalone && /iPhone|iPod/i.test(navigator.userAgent || "")) {
+        // In iOS home-screen mode, innerHeight/visualViewport can occasionally
+        // exclude the bottom safe-area. That is what creates the blue strip.
+        // Use the physical CSS screen height as the floor for portrait iPhones.
+        if (standalone && isIPhone && Math.abs(window.orientation || 0) !== 90) {
           const sw = Math.min(screen.width || viewW, screen.height || viewH);
           const sh = Math.max(screen.width || viewW, screen.height || viewH);
-
-          if (Math.abs(window.orientation || 0) === 90) {
-            viewW = Math.max(viewW, sh);
-            viewH = Math.max(viewH, sw);
-          } else {
-            viewW = Math.max(viewW, sw);
-            viewH = Math.max(viewH, sh);
-          }
+          viewW = Math.max(viewW, sw);
+          viewH = Math.max(viewH, sh);
         }
 
         viewW = Math.max(1, viewW);
@@ -748,42 +744,36 @@
       }
 
       function resize() {
-        const ratio = BASE_WIDTH / 740;
         const { viewW, viewH } = getViewportSize();
-
-        const standalone = window.navigator.standalone === true ||
-          window.matchMedia("(display-mode: standalone)").matches;
         const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
         const phoneSized = Math.min(viewW, viewH) <= 600;
 
-        // On phone/PWA, use the exact visible viewport so iOS cannot expose
-        // the page background as a blue bar at the bottom. On desktop, contain
-        // the playfield in a centered phone-shaped area and keep the HUD over it.
-        const fillPhoneScreen = phoneSized && (standalone || coarsePointer);
         let cssW;
         let cssH;
 
-        if (fillPhoneScreen) {
+        if (phoneSized && coarsePointer) {
+          // On iPhone, make the actual game canvas fill the full available
+          // screen, including the bottom safe-area, instead of forcing 9:16.
           cssW = viewW;
           cssH = viewH;
         } else {
+          // Desktop/tablet preview: contain an iPhone-shaped playfield and
+          // leave the blue only outside the gameplay area.
+          const desktopRatio = 430 / 932;
           const maxGameW = 430;
           const maxGameH = Math.min(932, viewH);
 
-          cssW = Math.min(viewW, maxGameW, maxGameH * ratio);
-          cssH = cssW / ratio;
+          cssW = Math.min(viewW, maxGameW, maxGameH * desktopRatio);
+          cssH = cssW / desktopRatio;
 
           if (cssH > viewH) {
             cssH = viewH;
-            cssW = cssH * ratio;
+            cssW = cssH * desktopRatio;
           }
         }
 
         cssW = Math.round(cssW);
         cssH = Math.round(cssH);
-
-        const gameLeft = Math.round((viewW - cssW) / 2);
-        const gameTop = Math.round((viewH - cssH) / 2);
 
         canvas.style.width = cssW + "px";
         canvas.style.height = cssH + "px";
@@ -801,11 +791,10 @@
 
         stageEl.style.width = viewW + "px";
         stageEl.style.height = viewH + "px";
-        stageEl.style.setProperty("--game-left", gameLeft + "px");
-        stageEl.style.setProperty("--game-top", gameTop + "px");
+        stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
         stageEl.style.setProperty("--game-width", cssW + "px");
         stageEl.style.setProperty("--game-height", cssH + "px");
-        stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
+
         resetBird();
       }
 
@@ -1892,11 +1881,14 @@
       window.addEventListener("pageshow", () => {
         queueResize();
         setTimeout(queueResize, 250);
+        setTimeout(queueResize, 800);
       });
+
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
           queueResize();
           setTimeout(queueResize, 250);
+          setTimeout(queueResize, 800);
         }
       });
 
@@ -1920,9 +1912,6 @@
       });
 
       resize();
-      setTimeout(queueResize, 80);
-      setTimeout(queueResize, 300);
-      setTimeout(queueResize, 900);
       updateHud();
       hidePanel();
       readyWhenLoaded();
