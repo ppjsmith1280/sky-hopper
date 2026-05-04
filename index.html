@@ -88,8 +88,12 @@
 
     .hud {
       position: absolute;
-      inset: 0;
+      left: var(--game-left, 0px);
+      top: var(--game-top, 0px);
+      width: var(--game-width, 100vw);
+      height: var(--game-height, var(--app-height, 100vh));
       pointer-events: none;
+      overflow: hidden;
     }
 
     .chips {
@@ -110,10 +114,13 @@
       -webkit-backdrop-filter: blur(12px);
       box-shadow: inset 0 0 0 1px rgba(255,255,255,.18);
       min-width: calc(74px * var(--ui-scale));
+      text-align: center;
     }
 
     .chip .label {
       display: block;
+      width: 100%;
+      text-align: center;
       font-size: calc(11px * var(--ui-scale));
       letter-spacing: .12em;
       text-transform: uppercase;
@@ -124,7 +131,7 @@
     .chip .value {
       display: block;
       width: 100%;
-      text-align: right;
+      text-align: center;
       font-size: calc(28px * var(--ui-scale));
       font-weight: 800;
       line-height: 1;
@@ -177,7 +184,10 @@
 
     .tap-zone {
       position: absolute;
-      inset: 0;
+      left: var(--game-left, 0px);
+      top: var(--game-top, 0px);
+      width: var(--game-width, 100vw);
+      height: var(--game-height, var(--app-height, 100vh));
       z-index: 4;
       background: transparent;
     }
@@ -738,7 +748,7 @@
       }
 
       function resize() {
-        const ratio = 9 / 16;
+        const ratio = BASE_WIDTH / 740;
         const { viewW, viewH } = getViewportSize();
 
         const standalone = window.navigator.standalone === true ||
@@ -746,21 +756,16 @@
         const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
         const phoneSized = Math.min(viewW, viewH) <= 600;
 
-        // On iPhone/home-screen, cover the screen so no browser/body background
-        // can appear as a bottom bar. On desktop, contain the playfield inside
-        // a fixed iPhone-like area with blue around it.
+        // On phone/PWA, use the exact visible viewport so iOS cannot expose
+        // the page background as a blue bar at the bottom. On desktop, contain
+        // the playfield in a centered phone-shaped area and keep the HUD over it.
         const fillPhoneScreen = phoneSized && (standalone || coarsePointer);
         let cssW;
         let cssH;
 
         if (fillPhoneScreen) {
           cssW = viewW;
-          cssH = cssW / ratio;
-
-          if (cssH < viewH) {
-            cssH = viewH;
-            cssW = cssH * ratio;
-          }
+          cssH = viewH;
         } else {
           const maxGameW = 430;
           const maxGameH = Math.min(932, viewH);
@@ -776,6 +781,9 @@
 
         cssW = Math.round(cssW);
         cssH = Math.round(cssH);
+
+        const gameLeft = Math.round((viewW - cssW) / 2);
+        const gameTop = Math.round((viewH - cssH) / 2);
 
         canvas.style.width = cssW + "px";
         canvas.style.height = cssH + "px";
@@ -793,6 +801,10 @@
 
         stageEl.style.width = viewW + "px";
         stageEl.style.height = viewH + "px";
+        stageEl.style.setProperty("--game-left", gameLeft + "px");
+        stageEl.style.setProperty("--game-top", gameTop + "px");
+        stageEl.style.setProperty("--game-width", cssW + "px");
+        stageEl.style.setProperty("--game-height", cssH + "px");
         stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
         resetBird();
       }
@@ -1908,6 +1920,9 @@
       });
 
       resize();
+      setTimeout(queueResize, 80);
+      setTimeout(queueResize, 300);
+      setTimeout(queueResize, 900);
       updateHud();
       hidePanel();
       readyWhenLoaded();
