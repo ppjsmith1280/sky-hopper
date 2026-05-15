@@ -78,7 +78,10 @@
 
     .hud {
       position: absolute;
-      inset: 0;
+      left: var(--game-left, 0px);
+      top: var(--game-top, 0px);
+      width: var(--game-visible-w, 100vw);
+      height: var(--game-visible-h, 100dvh);
       pointer-events: none;
     }
 
@@ -752,7 +755,17 @@
         groundH = Math.round(H * 0.115);
         groundY = H - groundH + 1;
 
+        const visibleLeft = Math.max(0, (viewW - cssW) / 2);
+        const visibleTop = Math.max(0, (viewH - cssH) / 2);
+        const visibleW = Math.min(cssW, viewW);
+        const visibleH = Math.min(cssH, viewH);
+
         stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
+        stageEl.style.setProperty("--game-left", visibleLeft + "px");
+        stageEl.style.setProperty("--game-top", visibleTop + "px");
+        stageEl.style.setProperty("--game-visible-w", visibleW + "px");
+        stageEl.style.setProperty("--game-visible-h", visibleH + "px");
+
         resetBird();
       }
 
