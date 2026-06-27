@@ -28,7 +28,9 @@
       margin: 0;
       width: 100%;
       height: 100%;
-      background: #87cfff;
+      background:
+        radial-gradient(circle at 50% 8%, rgba(181, 232, 255, 0.52), rgba(181, 232, 255, 0) 34%),
+        linear-gradient(180deg, #0b8fe9 0%, #42b8f4 44%, #87cfff 100%);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       overflow: hidden;
@@ -51,12 +53,18 @@
       padding: 0;
       margin: 0;
       overflow: hidden;
-      background: #87cfff;
+      background:
+        radial-gradient(circle at 50% 8%, rgba(181, 232, 255, 0.52), rgba(181, 232, 255, 0) 34%),
+        linear-gradient(180deg, #0b8fe9 0%, #42b8f4 44%, #87cfff 100%);
     }
 
     .stage {
-      position: fixed;
-      inset: 0;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: var(--game-css-width, 100vw);
+      height: var(--game-css-height, 100dvh);
+      transform: translate(-50%, -50%);
       overflow: hidden;
       user-select: none;
       -webkit-user-select: none;
@@ -67,9 +75,9 @@
 
     canvas {
       position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
+      inset: 0;
+      width: 100%;
+      height: 100%;
       display: block;
       border-radius: 0;
       box-shadow: none;
@@ -180,7 +188,7 @@
 <body>
   <div class="app">
     <div class="stage" id="stage">
-      <canvas id="game" width="420" height="740" aria-label="Sky Hopper game"></canvas>
+      <canvas id="game" width="402" height="874" aria-label="Flap Tap game"></canvas>
 
       <div class="hud">
         <div class="chips">
@@ -195,7 +203,7 @@
         </div>
 
         <div class="panel" id="panel">
-          <h1 id="panelTitle">Sky Hopper</h1>
+          <h1 id="panelTitle">Flap Tap</h1>
           <p class="subtitle" id="panelSubtitle">An original tap to fly arcade game</p>
           <p class="action" id="panelAction">Tap, click, or press Space to start</p>
           <p class="small" id="panelSmall">Pass through the ancient columns.</p>
@@ -246,8 +254,11 @@
         small: document.getElementById("panelSmall")
       };
 
-      const DPR = Math.min(window.devicePixelRatio || 1, 2);
-      const BASE_WIDTH = 420;
+      const DESIGN_WIDTH = 402;
+      const DESIGN_HEIGHT = 874;
+      const DESIGN_RATIO = DESIGN_WIDTH / DESIGN_HEIGHT;
+      const BASE_WIDTH = DESIGN_WIDTH;
+      let renderDPR = Math.min(window.devicePixelRatio || 1, 3);
 
       const img = {
         backgroundClouds: new Image(),
@@ -308,6 +319,18 @@
         maxSpeedBoost: 0.80
       };
 
+      const BEST_KEY = "flap_tap_best";
+      const LEGACY_BEST_KEY = "sky_hopper_best";
+
+      function readBestScore() {
+        return Number(localStorage.getItem(BEST_KEY) || localStorage.getItem(LEGACY_BEST_KEY) || 0);
+      }
+
+      function saveBestScore(score) {
+        localStorage.setItem(BEST_KEY, String(score));
+        localStorage.setItem(LEGACY_BEST_KEY, String(score));
+      }
+
       const state = {
         mode: "loading",
         t: 0,
@@ -315,7 +338,7 @@
         groundScroll: 0,
         spawnTimer: 0,
         score: 0,
-        best: Number(localStorage.getItem("sky_hopper_best") || 0),
+        best: readBestScore(),
         flash: 0,
         shake: 0,
         pipes: [],
@@ -647,10 +670,10 @@
         angle: 0
       };
 
-      let W = 420;
-      let H = 740;
-      let groundH = 86;
-      let groundY = H - groundH;
+      let W = DESIGN_WIDTH;
+      let H = DESIGN_HEIGHT;
+      let groundH = Math.round(H * 0.115);
+      let groundY = H - groundH + 1;
 
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
       const rand = (min, max) => Math.random() * (max - min) + min;
@@ -695,33 +718,51 @@
       }
 
       function resize() {
-        const ratio = 9 / 16;
         const viewW = window.innerWidth;
         const viewH = window.innerHeight;
+        const isPortrait = viewH >= viewW;
+        const isLikelyMobile = isPortrait && (viewW <= 820 || navigator.maxTouchPoints > 0);
 
-        let cssW = viewW;
-        let cssH = cssW / ratio;
+        let cssW;
+        let cssH;
 
-        if (cssH < viewH) {
-          cssH = viewH;
-          cssW = cssH * ratio;
+        if (isLikelyMobile) {
+          // Mobile should fill the screen with no visible border. The game keeps
+          // its fixed iPhone 17 Pro logical size and the display layer covers
+          // the viewport, cropping only on off-ratio devices.
+          cssW = viewW;
+          cssH = cssW / DESIGN_RATIO;
+
+          if (cssH < viewH) {
+            cssH = viewH;
+            cssW = cssH * DESIGN_RATIO;
+          }
+        } else {
+          // Desktop shows the fixed phone-shaped game area centered over the
+          // blue gradient background instead of stretching the game world.
+          const fitScale = Math.min(1, viewW / DESIGN_WIDTH, viewH / DESIGN_HEIGHT);
+          cssW = DESIGN_WIDTH * fitScale;
+          cssH = DESIGN_HEIGHT * fitScale;
         }
 
-        canvas.style.width = cssW + "px";
-        canvas.style.height = cssH + "px";
-        canvas.width = Math.round(cssW * DPR);
-        canvas.height = Math.round(cssH * DPR);
+        renderDPR = Math.min(window.devicePixelRatio || 1, 3);
 
-        ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+        stageEl.style.setProperty("--game-css-width", cssW + "px");
+        stageEl.style.setProperty("--game-css-height", cssH + "px");
+        stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
+
+        canvas.width = Math.round(DESIGN_WIDTH * renderDPR);
+        canvas.height = Math.round(DESIGN_HEIGHT * renderDPR);
+
+        ctx.setTransform(renderDPR, 0, 0, renderDPR, 0, 0);
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
 
-        W = cssW;
-        H = cssH;
+        W = DESIGN_WIDTH;
+        H = DESIGN_HEIGHT;
         groundH = Math.round(H * 0.115);
         groundY = H - groundH + 1;
 
-        stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
         resetBird();
       }
 
@@ -854,7 +895,7 @@
 
         if (state.score > state.best) {
           state.best = state.score;
-          localStorage.setItem("sky_hopper_best", String(state.best));
+          saveBestScore(state.best);
         }
 
         updateHud();
@@ -1783,6 +1824,10 @@
       }
 
       window.addEventListener("resize", resize);
+      window.addEventListener("orientationchange", resize);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", resize);
+      }
 
       window.addEventListener("keydown", e => {
         if (e.code === "Space" || e.code === "ArrowUp") {
