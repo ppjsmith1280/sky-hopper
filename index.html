@@ -287,7 +287,10 @@
         birdSunset: "assets/bird_sheet_sunset.png",
         birdNight: "assets/bird_sheet_night.png",
         birdSunrise: "assets/bird_sheet_sunrise.png",
-        ground: "assets/ground.png",
+        groundDay: "assets/ground_day.png",
+        groundSunset: "assets/ground_sunset.png",
+        groundNight: "assets/ground_night.png",
+        groundSunrise: "assets/ground_sunrise.png",
         pillarCap: "assets/pillar_cap.png",
         pillarBase: "assets/pillar_base.png",
         pillarColumn: "assets/pillar_column.png",
@@ -296,12 +299,17 @@
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
-      const GAME_VERSION = "v1.0.7";
+      const GAME_VERSION = "v1.0.16";
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = "high";
+
+      const phaseLayerCanvas = document.createElement("canvas");
+      const phaseLayerCtx = phaseLayerCanvas.getContext("2d");
+      phaseLayerCtx.imageSmoothingEnabled = true;
+      phaseLayerCtx.imageSmoothingQuality = "high";
 
       const stageEl = document.getElementById("stage");
       const tapZone = document.getElementById("tapZone");
@@ -321,6 +329,7 @@
       const DESIGN_HEIGHT = 874;
       const DESIGN_RATIO = DESIGN_WIDTH / DESIGN_HEIGHT;
       const BASE_WIDTH = DESIGN_WIDTH;
+      const GROUND_HEIGHT_RATIO = 0.115;
       let renderDPR = Math.min(window.devicePixelRatio || 1, 3);
 
       const img = {
@@ -347,7 +356,10 @@
         birdSunset: new Image(),
         birdNight: new Image(),
         birdSunrise: new Image(),
-        ground: new Image(),
+        groundDay: new Image(),
+        groundSunset: new Image(),
+        groundNight: new Image(),
+        groundSunrise: new Image(),
         pillarCap: new Image(),
         pillarBase: new Image(),
         pillarColumn: new Image()
@@ -376,7 +388,10 @@
       img.birdSunset.src = ASSETS.birdSunset;
       img.birdNight.src = ASSETS.birdNight;
       img.birdSunrise.src = ASSETS.birdSunrise;
-      img.ground.src = ASSETS.ground;
+      img.groundDay.src = ASSETS.groundDay;
+      img.groundSunset.src = ASSETS.groundSunset;
+      img.groundNight.src = ASSETS.groundNight;
+      img.groundSunrise.src = ASSETS.groundSunrise;
       img.pillarCap.src = ASSETS.pillarCap;
       img.pillarBase.src = ASSETS.pillarBase;
       img.pillarColumn.src = ASSETS.pillarColumn;
@@ -414,21 +429,21 @@
         maxSpeedBoost: 0.80
       };
 
-      // Time-of-day testing settings. Counts are based on passed columns.
-      // Fades are calculated continuously every frame across the full column span,
-      // so the blend changes in small increments instead of jumping at each pass.
+      // Time-of-day cycle settings. These are real gameplay seconds.
+      // The clock only advances while the bird is actively in a run. If the bird
+      // crashes, the current phase is held and resumes when the user starts again.
       const TIME_PHASES = ["day", "sunset", "night", "sunrise"];
       const TIME_SEGMENTS = [
-        { from: "day", to: "day", columns: 10, type: "hold" },
-        { from: "day", to: "sunset", columns: 3, type: "fade" },
-        { from: "sunset", to: "sunset", columns: 5, type: "hold" },
-        { from: "sunset", to: "night", columns: 3, type: "fade" },
-        { from: "night", to: "night", columns: 10, type: "hold" },
-        { from: "night", to: "sunrise", columns: 3, type: "fade" },
-        { from: "sunrise", to: "sunrise", columns: 5, type: "hold" },
-        { from: "sunrise", to: "day", columns: 3, type: "fade" }
+        { from: "day", to: "day", seconds: 10, type: "hold" },
+        { from: "day", to: "sunset", seconds: 2, type: "fade" },
+        { from: "sunset", to: "sunset", seconds: 2, type: "hold" },
+        { from: "sunset", to: "night", seconds: 2, type: "fade" },
+        { from: "night", to: "night", seconds: 10, type: "hold" },
+        { from: "night", to: "sunrise", seconds: 2, type: "fade" },
+        { from: "sunrise", to: "sunrise", seconds: 3, type: "hold" },
+        { from: "sunrise", to: "day", seconds: 2, type: "fade" }
       ];
-      const TIME_CYCLE_COLUMNS = TIME_SEGMENTS.reduce((total, segment) => total + segment.columns, 0);
+      const TIME_CYCLE_SECONDS = TIME_SEGMENTS.reduce((total, segment) => total + segment.seconds, 0);
 
       const BEST_KEY = "flap_tap_best";
       const LEGACY_BEST_KEY = "sky_hopper_best";
@@ -475,10 +490,7 @@
         crashFeathers: [],
         hasStartedOnce: false,
         columnsBehindGround: false,
-        timeColumnPasses: 0,
-        timeCycleProgress: 0,
-        timeCycleProgressTarget: 0,
-        nextTimePipeTarget: 1
+        timeCycleProgress: 0
       };
 
       let audioUnlocked = false;
@@ -787,7 +799,7 @@
 
       let W = DESIGN_WIDTH;
       let H = DESIGN_HEIGHT;
-      let groundH = Math.round(H * 0.115);
+      let groundH = Math.round(H * GROUND_HEIGHT_RATIO);
       let groundY = H - groundH + 1;
 
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
@@ -956,7 +968,7 @@
 
         W = DESIGN_WIDTH;
         H = DESIGN_HEIGHT;
-        groundH = Math.round(H * 0.115);
+        groundH = Math.round(H * GROUND_HEIGHT_RATIO);
         groundY = H - groundH + 1;
 
         resetBird();
@@ -983,8 +995,8 @@
         state.shake = 0;
         state.columnsBehindGround = false;
         state.pipes = [];
-        state.timeCycleProgressTarget = Math.max(state.timeCycleProgressTarget, state.timeCycleProgress);
-        state.nextTimePipeTarget = Math.floor(Math.max(state.timeCycleProgress, state.timeCycleProgressTarget)) + 1;
+        // Keep the current time-of-day phase after a bird crash. The clock
+        // resumes from this point as soon as the next run starts.
         state.particles = [];
         state.crashFeathers = [];
         state.crashAnim = 0;
@@ -1161,9 +1173,6 @@
 
         const center = rand(low, high);
 
-        const timeTargetPass = state.nextTimePipeTarget++;
-        const timeStartPass = Math.max(state.timeCycleProgressTarget, state.timeCycleProgress, timeTargetPass - 1);
-
         state.pipes.push({
           x,
           width,
@@ -1171,8 +1180,6 @@
           bottomStart: center + gap / 2,
           scored: false,
           scoreStartX: x + width,
-          timeStartPass,
-          timeTargetPass,
           exitSeed: 0,
           exitLean: 0
         });
@@ -1232,59 +1239,13 @@
         }
       }
 
-      function getPipePassProgress(pipe) {
-        if (!pipe || !Number.isFinite(pipe.scoreStartX) || !Number.isFinite(pipe.timeTargetPass)) {
-          return state.timeCycleProgress;
-        }
-
-        const scoreEndX = bird.x;
-        const currentScoreX = pipe.x + pipe.width;
-        const travel = Math.max(1, pipe.scoreStartX - scoreEndX);
-        const t = clamp((pipe.scoreStartX - currentScoreX) / travel, 0, 1);
-
-        return pipe.timeStartPass + (pipe.timeTargetPass - pipe.timeStartPass) * t;
+      function advanceTimeCycle(dt) {
+        if (state.mode !== "playing") return;
+        state.timeCycleProgress = (state.timeCycleProgress + dt) % TIME_CYCLE_SECONDS;
       }
 
-      function updateTimeCycleProgressFromPipes() {
-        if (state.mode !== "playing" || state.gameplayIntroActive) return;
-
-        const activePipe = state.pipes
-          .filter(pipe => !pipe.scored && Number.isFinite(pipe.timeTargetPass))
-          .sort((a, b) => a.timeTargetPass - b.timeTargetPass)[0];
-
-        if (!activePipe) return;
-
-        // This is the raw target based on where the next column is between
-        // its spawn position and the scoring line. The visible time-of-day
-        // blend eases toward this value every frame so fades do not jump at
-        // column pass events.
-        state.timeCycleProgressTarget = Math.max(
-          state.timeCycleProgressTarget,
-          getPipePassProgress(activePipe)
-        );
-      }
-
-      function advanceTimeCycleVisual(dt) {
-        if (state.timeCycleProgressTarget <= state.timeCycleProgress) return;
-
-        const diff = state.timeCycleProgressTarget - state.timeCycleProgress;
-        const passRate = 1 / Math.max(0.18, currentSpawnInterval());
-        const maxStep = Math.max(0.002, passRate * dt * 1.65);
-
-        state.timeCycleProgress += Math.min(diff, maxStep);
-      }
-
-      function scorePipe(pipe = null) {
+      function scorePipe() {
         state.score += 1;
-
-        if (pipe && Number.isFinite(pipe.timeTargetPass)) {
-          state.timeColumnPasses = Math.max(state.timeColumnPasses, pipe.timeTargetPass);
-          state.timeCycleProgressTarget = Math.max(state.timeCycleProgressTarget, pipe.timeTargetPass);
-        } else {
-          state.timeColumnPasses += 1;
-          state.timeCycleProgressTarget = Math.max(state.timeCycleProgressTarget, state.timeColumnPasses);
-        }
-
         updateHud();
         state.flash = 0.05;
         burst(bird.x + bird.width * 0.18, bird.y - bird.height * 0.05, 10, "rgba(255,245,168,.75)", true);
@@ -1517,6 +1478,7 @@
         const speed = currentSpeed();
         state.bgScroll += dt * speed * 0.16;
         state.groundScroll += dt * speed;
+        advanceTimeCycle(dt);
 
         if (state.gameplayIntroActive) {
           state.gameplayIntro = Math.min(1, state.gameplayIntro + dt * 3.4);
@@ -1556,16 +1518,13 @@
 
           if (!pipe.scored && pipe.x + pipe.width < bird.x) {
             pipe.scored = true;
-            scorePipe(pipe);
+            scorePipe();
           }
 
           if (collides(pipe)) {
             gameOver();
           }
         }
-
-        updateTimeCycleProgressFromPipes();
-        advanceTimeCycleVisual(dt);
 
         state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -240);
 
@@ -1586,46 +1545,93 @@
         updateParticles(dt);
       }
 
-      function drawRepeatingCrop(image, sx, sy, sw, sh, scroll, y, drawH, overlap = 0) {
+      function ensurePhaseLayerBuffer() {
+        if (phaseLayerCanvas.width !== canvas.width || phaseLayerCanvas.height !== canvas.height) {
+          phaseLayerCanvas.width = canvas.width;
+          phaseLayerCanvas.height = canvas.height;
+        }
+
+        phaseLayerCtx.setTransform(renderDPR, 0, 0, renderDPR, 0, 0);
+        phaseLayerCtx.imageSmoothingEnabled = true;
+        phaseLayerCtx.imageSmoothingQuality = "high";
+      }
+
+      function clearPhaseLayerBuffer() {
+        phaseLayerCtx.save();
+        phaseLayerCtx.setTransform(1, 0, 0, 1, 0, 0);
+        phaseLayerCtx.clearRect(0, 0, phaseLayerCanvas.width, phaseLayerCanvas.height);
+        phaseLayerCtx.restore();
+      }
+
+      function compositePhaseLayer(alpha = 1) {
+        ctx.save();
+        ctx.globalAlpha *= clamp(alpha, 0, 1);
+        ctx.drawImage(phaseLayerCanvas, 0, 0, phaseLayerCanvas.width, phaseLayerCanvas.height, 0, 0, W, H);
+        ctx.restore();
+      }
+
+      function drawRepeatingCropTo(targetCtx, image, sx, sy, sw, sh, scroll, y, drawH, overlap = 0) {
         const scale = drawH / sh;
         const tileW = sw * scale;
         const offset = ((scroll % tileW) + tileW) % tileW;
+        const seamOverlap = Math.max(0, Math.ceil(overlap || 0));
+        const drawY = Math.round(y);
+        const drawHeight = Math.ceil(drawH);
 
-        for (let x = -offset - tileW; x < W + tileW; x += (tileW - overlap)) {
-          ctx.drawImage(image, sx, sy, sw, sh, x, y, tileW, drawH);
+        for (let x = -offset - tileW; x < W + tileW; x += tileW) {
+          const dx = Math.round(x) - seamOverlap;
+          const dw = Math.ceil(tileW) + seamOverlap * 2;
+          targetCtx.drawImage(image, sx, sy, sw, sh, dx, drawY, dw, drawHeight);
         }
       }
 
-      function drawRepeatingImage(image, scroll, y, drawH, cropRight = 0, overlap = 0) {
+      function drawRepeatingCrop(image, sx, sy, sw, sh, scroll, y, drawH, overlap = 0) {
+        drawRepeatingCropTo(ctx, image, sx, sy, sw, sh, scroll, y, drawH, overlap);
+      }
+
+      function drawRepeatingImageTo(targetCtx, image, scroll, y, drawH, cropRight = 0, overlap = 0) {
         const sw = image.width - cropRight;
         const sh = image.height;
         const scale = drawH / sh;
         const tileW = sw * scale;
         const offset = ((scroll % tileW) + tileW) % tileW;
+        const seamOverlap = Math.max(0, Math.ceil(overlap || 0));
+        const drawY = Math.round(y);
+        const drawHeight = Math.ceil(drawH);
 
-        for (let x = -offset - tileW; x < W + tileW; x += (tileW - overlap)) {
-          ctx.drawImage(image, 0, 0, sw, sh, x, y, tileW, drawH);
+        for (let x = -offset - tileW; x < W + tileW; x += tileW) {
+          const dx = Math.round(x) - seamOverlap;
+          const dw = Math.ceil(tileW) + seamOverlap * 2;
+          targetCtx.drawImage(image, 0, 0, sw, sh, dx, drawY, dw, drawHeight);
         }
       }
 
+      function drawRepeatingImage(image, scroll, y, drawH, cropRight = 0, overlap = 0) {
+        drawRepeatingImageTo(ctx, image, scroll, y, drawH, cropRight, overlap);
+      }
+
       function getTimeBlend() {
-        const cycleSpan = TIME_CYCLE_COLUMNS;
+        const cycleSpan = TIME_CYCLE_SECONDS;
         let progress = ((state.timeCycleProgress % cycleSpan) + cycleSpan) % cycleSpan;
 
         for (const segment of TIME_SEGMENTS) {
-          if (progress <= segment.columns) {
+          if (progress <= segment.seconds) {
             if (segment.type === "hold" || segment.from === segment.to) {
               return [{ phase: segment.from, alpha: 1 }];
             }
 
-            const fadeT = clamp(progress / Math.max(0.001, segment.columns), 0, 1);
+            const fadeT = clamp(progress / Math.max(0.001, segment.seconds), 0, 1);
+            // Keep the current phase fully visible while the next phase fades in.
+            // The incoming phase is rendered to a temporary full-opacity buffer first,
+            // then the completed layer is composited once. That prevents tile overlaps
+            // from being alpha-blended twice at the wrap seam during fades.
             return [
-              { phase: segment.from, alpha: 1 - fadeT },
+              { phase: segment.from, alpha: 1 },
               { phase: segment.to, alpha: fadeT }
             ];
           }
 
-          progress -= segment.columns;
+          progress -= segment.seconds;
         }
 
         return [{ phase: "day", alpha: 1 }];
@@ -1638,16 +1644,44 @@
       function drawRepeatingImageAlpha(image, scroll, y, drawH, cropRight = 0, overlap = 0, alpha = 1) {
         if (!image || alpha <= 0.001) return;
 
-        ctx.save();
-        ctx.globalAlpha *= clamp(alpha, 0, 1);
-        drawRepeatingImage(image, scroll, y, drawH, cropRight, overlap);
-        ctx.restore();
+        const a = clamp(alpha, 0, 1);
+        if (a >= 0.999) {
+          drawRepeatingImage(image, scroll, y, drawH, cropRight, overlap);
+          return;
+        }
+
+        ensurePhaseLayerBuffer();
+        clearPhaseLayerBuffer();
+        drawRepeatingImageTo(phaseLayerCtx, image, scroll, y, drawH, cropRight, overlap);
+        compositePhaseLayer(a);
       }
 
       function drawTimeBackgroundLayer(layerImages, scroll, y, drawH, cropRight = 0, overlap = 0) {
         for (const blend of getTimeBlend()) {
           const image = layerImages[blend.phase] || layerImages.day;
           drawRepeatingImageAlpha(image, scroll, y, drawH, cropRight, overlap, blend.alpha);
+        }
+      }
+
+      function drawRepeatingCropAlpha(image, sx, sy, sw, sh, scroll, y, drawH, overlap = 0, alpha = 1) {
+        if (!image || alpha <= 0.001) return;
+
+        const a = clamp(alpha, 0, 1);
+        if (a >= 0.999) {
+          drawRepeatingCrop(image, sx, sy, sw, sh, scroll, y, drawH, overlap);
+          return;
+        }
+
+        ensurePhaseLayerBuffer();
+        clearPhaseLayerBuffer();
+        drawRepeatingCropTo(phaseLayerCtx, image, sx, sy, sw, sh, scroll, y, drawH, overlap);
+        compositePhaseLayer(a);
+      }
+
+      function drawTimeCropLayer(layerImages, sx, sy, sw, sh, scroll, y, drawH, overlap = 0) {
+        for (const blend of getTimeBlend()) {
+          const image = layerImages[blend.phase] || layerImages.day;
+          drawRepeatingCropAlpha(image, sx, sy, sw, sh, scroll, y, drawH, overlap, blend.alpha);
         }
       }
 
@@ -2096,8 +2130,15 @@
         ctx.save();
         ctx.translate(quake.x, quake.y);
 
-        drawRepeatingCrop(
-          img.ground,
+        // Ground phase images match the original ground.png layout, including the
+        // same empty padding. Draw the same cropped band used by the original game.
+        drawTimeCropLayer(
+          {
+            day: img.groundDay,
+            sunset: img.groundSunset,
+            night: img.groundNight,
+            sunrise: img.groundSunrise
+          },
           BOX.groundCrop.x,
           BOX.groundCrop.y,
           BOX.groundCrop.w,
