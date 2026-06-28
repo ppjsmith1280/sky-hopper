@@ -1,4 +1,4 @@
-const CACHE_NAME = "flap-tap-v1.0.6";
+const CACHE_NAME = "flap-tap-v1.0.7";
 
 const PRECACHE_URLS = [
   "./",
@@ -22,7 +22,11 @@ const PRECACHE_URLS = [
   "./assets/background_trees_night.png",
   "./assets/background_trees_sunrise.png",
 
-  "./assets/background_plants.png",
+  "./assets/background_plants_day.png",
+  "./assets/background_plants_sunset.png",
+  "./assets/background_plants_night.png",
+  "./assets/background_plants_sunrise.png",
+
   "./assets/title.png",
   "./assets/CRASH.png",
   "./assets/feathers.png",
