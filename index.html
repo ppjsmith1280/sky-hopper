@@ -28,6 +28,7 @@
       margin: 0;
       width: 100%;
       height: 100%;
+      min-height: 100%;
       background:
         radial-gradient(circle at 50% 8%, rgba(181, 232, 255, 0.52), rgba(181, 232, 255, 0) 34%),
         linear-gradient(180deg, #0b8fe9 0%, #42b8f4 44%, #87cfff 100%);
@@ -42,6 +43,12 @@
       width: 100vw;
       height: 100vh;
       height: 100dvh;
+      min-height: -webkit-fill-available;
+    }
+
+    html {
+      min-height: -webkit-fill-available;
+      background-color: #0b8fe9;
     }
 
     .app {
@@ -50,6 +57,7 @@
       width: 100vw;
       height: 100vh;
       height: 100dvh;
+      min-height: -webkit-fill-available;
       padding: 0;
       margin: 0;
       overflow: hidden;
@@ -303,14 +311,14 @@
       };
 
       const VISUAL_SCALE = {
-        bird: 1.875,
-        column: 1.5
+        bird: 2.12,
+        column: 1.85
       };
 
       const DIFFICULTY = {
-        baseGapRatio: 0.235,
-        maxGapPx: 205,
-        minGapPx: 142,
+        baseGapRatio: 0.205,
+        maxGapPx: 180,
+        minGapPx: 132,
         gapTightenPerPoint: 1.3,
         baseSpawnInterval: 1.45,
         minSpawnInterval: 0.88,
@@ -717,9 +725,39 @@
         ui.best.textContent = String(state.best);
       }
 
+      function isStandaloneWebApp() {
+        return window.navigator.standalone === true ||
+          window.matchMedia("(display-mode: standalone)").matches ||
+          window.matchMedia("(display-mode: fullscreen)").matches;
+      }
+
+      function getViewportSize() {
+        const vv = window.visualViewport;
+        let viewW = Math.round(window.innerWidth || document.documentElement.clientWidth || 0);
+        let viewH = Math.round(window.innerHeight || document.documentElement.clientHeight || 0);
+
+        if (vv && vv.width && vv.height) {
+          viewW = Math.max(viewW, Math.round(vv.width));
+          viewH = Math.max(viewH, Math.round(vv.height));
+        }
+
+        // iOS home-screen launches can occasionally report a height that stops
+        // above the bottom safe area, leaving a white strip and shrinking the
+        // game. When running as a standalone web app, prefer the full screen
+        // height if it matches the current portrait device width.
+        if (isStandaloneWebApp() && window.screen) {
+          const screenW = Math.round(window.screen.width || 0);
+          const screenH = Math.round(window.screen.height || 0);
+          if (screenW && screenH && Math.abs(screenW - viewW) <= 8 && screenH > viewH) {
+            viewH = screenH;
+          }
+        }
+
+        return { viewW, viewH };
+      }
+
       function resize() {
-        const viewW = window.innerWidth;
-        const viewH = window.innerHeight;
+        const { viewW, viewH } = getViewportSize();
         const isPortrait = viewH >= viewW;
         const isLikelyMobile = isPortrait && (viewW <= 820 || navigator.maxTouchPoints > 0);
 
@@ -1562,7 +1600,7 @@
         const exitScale = 1 + exit * 0.42;
         const alpha = Math.max(0, 1 - exit * 1.2);
         const slideY = (1 - intro) * -H * 0.18 - exit * H * 0.20;
-        const logoW = Math.min(W * 0.86, H * 0.54);
+        const logoW = Math.min(W * 1.02, H * 0.57);
         const logoH = logoW * (img.titleLogo.naturalHeight / img.titleLogo.naturalWidth);
         const logoX = W / 2;
         const logoY = H * 0.42 + slideY;
@@ -1591,7 +1629,7 @@
         const tb = state.titleBird;
         // Title bird stays at the earlier title-screen size even though
         // the gameplay bird was enlarged.
-        const titleBirdW = bird.width * 1.76;
+        const titleBirdW = bird.width * 1.62;
         const frames = 4;
         const frameW = img.bird.width / frames;
         const sx = bird.frame * frameW;
@@ -1849,6 +1887,9 @@
       });
 
       resize();
+      setTimeout(resize, 120);
+      setTimeout(resize, 500);
+      setTimeout(resize, 1200);
       updateHud();
       hidePanel();
       readyWhenLoaded();
