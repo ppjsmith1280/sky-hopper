@@ -276,7 +276,10 @@
         backgroundTreesSunset: "assets/background_trees_sunset.png",
         backgroundTreesNight: "assets/background_trees_night.png",
         backgroundTreesSunrise: "assets/background_trees_sunrise.png",
-        backgroundPlants: "assets/background_plants.png",
+        backgroundPlantsDay: "assets/background_plants_day.png",
+        backgroundPlantsSunset: "assets/background_plants_sunset.png",
+        backgroundPlantsNight: "assets/background_plants_night.png",
+        backgroundPlantsSunrise: "assets/background_plants_sunrise.png",
         titleLogo: "assets/title.png",
         crashLogo: "assets/CRASH.png",
         feathers: "assets/feathers.png",
@@ -293,7 +296,7 @@
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
-      const GAME_VERSION = "v1.0.6";
+      const GAME_VERSION = "v1.0.7";
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
@@ -333,7 +336,10 @@
         backgroundTreesSunset: new Image(),
         backgroundTreesNight: new Image(),
         backgroundTreesSunrise: new Image(),
-        backgroundPlants: new Image(),
+        backgroundPlantsDay: new Image(),
+        backgroundPlantsSunset: new Image(),
+        backgroundPlantsNight: new Image(),
+        backgroundPlantsSunrise: new Image(),
         titleLogo: new Image(),
         crashLogo: new Image(),
         feathers: new Image(),
@@ -359,7 +365,10 @@
       img.backgroundTreesSunset.src = ASSETS.backgroundTreesSunset;
       img.backgroundTreesNight.src = ASSETS.backgroundTreesNight;
       img.backgroundTreesSunrise.src = ASSETS.backgroundTreesSunrise;
-      img.backgroundPlants.src = ASSETS.backgroundPlants;
+      img.backgroundPlantsDay.src = ASSETS.backgroundPlantsDay;
+      img.backgroundPlantsSunset.src = ASSETS.backgroundPlantsSunset;
+      img.backgroundPlantsNight.src = ASSETS.backgroundPlantsNight;
+      img.backgroundPlantsSunrise.src = ASSETS.backgroundPlantsSunrise;
       img.titleLogo.src = ASSETS.titleLogo;
       img.crashLogo.src = ASSETS.crashLogo;
       img.feathers.src = ASSETS.feathers;
@@ -1688,8 +1697,13 @@
           1
         );
 
-        drawRepeatingImage(
-          img.backgroundPlants,
+        drawTimeBackgroundLayer(
+          {
+            day: img.backgroundPlantsDay,
+            sunset: img.backgroundPlantsSunset,
+            night: img.backgroundPlantsNight,
+            sunrise: img.backgroundPlantsSunrise
+          },
           state.bgScroll * 0.74,
           0,
           H,
