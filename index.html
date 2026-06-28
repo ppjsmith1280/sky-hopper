@@ -284,7 +284,7 @@
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
-      const GAME_VERSION = "v1.0.3";
+      const GAME_VERSION = "v1.0.4";
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
@@ -379,7 +379,8 @@
       };
 
       // Time-of-day background testing settings. Counts are based on passed columns.
-      // Example: hold day for 2 columns, fade to sunset across 2 columns, and repeat.
+      // Holds last for 2 column passes. Fades are calculated as a continuous
+      // per-frame blend across the next 2 column-pass span, not as column-step jumps.
       const TIME_PHASES = ["day", "sunset", "night", "sunrise"];
       const TIME_CYCLE = {
         holdColumns: 2,
@@ -433,6 +434,7 @@
         columnsBehindGround: false,
         timeColumnPasses: 0,
         timeCycleProgress: 0,
+        timeCycleProgressTarget: 0,
         nextTimePipeTarget: 1
       };
 
@@ -938,7 +940,8 @@
         state.shake = 0;
         state.columnsBehindGround = false;
         state.pipes = [];
-        state.nextTimePipeTarget = Math.floor(state.timeCycleProgress) + 1;
+        state.timeCycleProgressTarget = Math.max(state.timeCycleProgressTarget, state.timeCycleProgress);
+        state.nextTimePipeTarget = Math.floor(Math.max(state.timeCycleProgress, state.timeCycleProgressTarget)) + 1;
         state.particles = [];
         state.crashFeathers = [];
         state.crashAnim = 0;
@@ -1116,7 +1119,7 @@
         const center = rand(low, high);
 
         const timeTargetPass = state.nextTimePipeTarget++;
-        const timeStartPass = Math.max(state.timeCycleProgress, timeTargetPass - 1);
+        const timeStartPass = Math.max(state.timeCycleProgressTarget, state.timeCycleProgress, timeTargetPass - 1);
 
         state.pipes.push({
           x,
@@ -1208,10 +1211,24 @@
 
         if (!activePipe) return;
 
-        state.timeCycleProgress = Math.max(
-          state.timeCycleProgress,
+        // This is the raw target based on where the next column is between
+        // its spawn position and the scoring line. The visible time-of-day
+        // blend eases toward this value every frame so fades do not jump at
+        // column pass events.
+        state.timeCycleProgressTarget = Math.max(
+          state.timeCycleProgressTarget,
           getPipePassProgress(activePipe)
         );
+      }
+
+      function advanceTimeCycleVisual(dt) {
+        if (state.timeCycleProgressTarget <= state.timeCycleProgress) return;
+
+        const diff = state.timeCycleProgressTarget - state.timeCycleProgress;
+        const passRate = 1 / Math.max(0.18, currentSpawnInterval());
+        const maxStep = Math.max(0.002, passRate * dt * 1.65);
+
+        state.timeCycleProgress += Math.min(diff, maxStep);
       }
 
       function scorePipe(pipe = null) {
@@ -1219,10 +1236,10 @@
 
         if (pipe && Number.isFinite(pipe.timeTargetPass)) {
           state.timeColumnPasses = Math.max(state.timeColumnPasses, pipe.timeTargetPass);
-          state.timeCycleProgress = Math.max(state.timeCycleProgress, pipe.timeTargetPass);
+          state.timeCycleProgressTarget = Math.max(state.timeCycleProgressTarget, pipe.timeTargetPass);
         } else {
           state.timeColumnPasses += 1;
-          state.timeCycleProgress = Math.max(state.timeCycleProgress, state.timeColumnPasses);
+          state.timeCycleProgressTarget = Math.max(state.timeCycleProgressTarget, state.timeColumnPasses);
         }
 
         updateHud();
@@ -1505,6 +1522,7 @@
         }
 
         updateTimeCycleProgressFromPipes();
+        advanceTimeCycleVisual(dt);
 
         state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -240);
 
