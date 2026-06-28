@@ -281,7 +281,7 @@
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
-      const GAME_VERSION = "v1.0.1";
+      const GAME_VERSION = "v1.0.2";
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
@@ -1121,7 +1121,7 @@
       }
 
       function spawnCrashFeathers() {
-        const logoW = Math.min(W * 0.81, H * 0.486);
+        const logoW = Math.min(W * 0.86, W - 34, H * 0.50);
         const logoH = img.crashLogo.naturalWidth
           ? logoW * (img.crashLogo.naturalHeight / img.crashLogo.naturalWidth)
           : logoW * 0.34;
@@ -1154,7 +1154,7 @@
             tiltAmp: rand(0.34, 0.72),
             drift: rand(-18, 18),
             frame: Math.floor(rand(0, 4)),
-            size: rand(W * 0.075, W * 0.130)
+            size: rand(W * 0.090, W * 0.155)
           });
         }
       }
@@ -1821,7 +1821,7 @@
         const settleShake = state.crashLock > 0 ? Math.sin(state.t * 72) * (1 - crashIn) * 0.10 : Math.sin(state.t * 2.2) * 0.012;
         const exitEase = exit * exit * (3 - 2 * exit);
 
-        const logoW = Math.min(W * 0.81, H * 0.486);
+        const logoW = Math.min(W * 0.86, W - 34, H * 0.50);
         const logoH = logoW * (img.crashLogo.naturalHeight / img.crashLogo.naturalWidth);
         const logoX = W / 2 + exitEase * W * 1.25;
         const logoY = H * 0.38 - exitEase * H * 0.12;
