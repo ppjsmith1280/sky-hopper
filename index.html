@@ -266,7 +266,10 @@
       const ASSETS = {
         backgroundClouds: "assets/background_clouds.png",
         backgroundMountains: "assets/background_mountains.png",
-        backgroundTrees: "assets/background_trees.png",
+        backgroundTreesDay: "assets/background_trees_day.png",
+        backgroundTreesSunset: "assets/background_trees_sunset.png",
+        backgroundTreesNight: "assets/background_trees_night.png",
+        backgroundTreesSunrise: "assets/background_trees_sunrise.png",
         backgroundPlants: "assets/background_plants.png",
         titleLogo: "assets/title.png",
         crashLogo: "assets/CRASH.png",
@@ -281,7 +284,7 @@
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
-      const GAME_VERSION = "v1.0.2b";
+      const GAME_VERSION = "v1.0.3";
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
@@ -311,7 +314,10 @@
       const img = {
         backgroundClouds: new Image(),
         backgroundMountains: new Image(),
-        backgroundTrees: new Image(),
+        backgroundTreesDay: new Image(),
+        backgroundTreesSunset: new Image(),
+        backgroundTreesNight: new Image(),
+        backgroundTreesSunrise: new Image(),
         backgroundPlants: new Image(),
         titleLogo: new Image(),
         crashLogo: new Image(),
@@ -325,7 +331,10 @@
 
       img.backgroundClouds.src = ASSETS.backgroundClouds;
       img.backgroundMountains.src = ASSETS.backgroundMountains;
-      img.backgroundTrees.src = ASSETS.backgroundTrees;
+      img.backgroundTreesDay.src = ASSETS.backgroundTreesDay;
+      img.backgroundTreesSunset.src = ASSETS.backgroundTreesSunset;
+      img.backgroundTreesNight.src = ASSETS.backgroundTreesNight;
+      img.backgroundTreesSunrise.src = ASSETS.backgroundTreesSunrise;
       img.backgroundPlants.src = ASSETS.backgroundPlants;
       img.titleLogo.src = ASSETS.titleLogo;
       img.crashLogo.src = ASSETS.crashLogo;
@@ -367,6 +376,14 @@
         spawnTightenPerPoint: 0.02,
         speedIncreasePerPoint: 0.022,
         maxSpeedBoost: 0.80
+      };
+
+      // Time-of-day background testing settings. Counts are based on passed columns.
+      // Example: hold day for 2 columns, fade to sunset across 2 columns, and repeat.
+      const TIME_PHASES = ["day", "sunset", "night", "sunrise"];
+      const TIME_CYCLE = {
+        holdColumns: 2,
+        fadeColumns: 2
       };
 
       const BEST_KEY = "flap_tap_best";
@@ -413,7 +430,10 @@
         crashExiting: false,
         crashFeathers: [],
         hasStartedOnce: false,
-        columnsBehindGround: false
+        columnsBehindGround: false,
+        timeColumnPasses: 0,
+        timeCycleProgress: 0,
+        nextTimePipeTarget: 1
       };
 
       let audioUnlocked = false;
@@ -918,6 +938,7 @@
         state.shake = 0;
         state.columnsBehindGround = false;
         state.pipes = [];
+        state.nextTimePipeTarget = Math.floor(state.timeCycleProgress) + 1;
         state.particles = [];
         state.crashFeathers = [];
         state.crashAnim = 0;
@@ -1094,12 +1115,18 @@
 
         const center = rand(low, high);
 
+        const timeTargetPass = state.nextTimePipeTarget++;
+        const timeStartPass = Math.max(state.timeCycleProgress, timeTargetPass - 1);
+
         state.pipes.push({
           x,
           width,
           topEnd: center - gap / 2,
           bottomStart: center + gap / 2,
           scored: false,
+          scoreStartX: x + width,
+          timeStartPass,
+          timeTargetPass,
           exitSeed: 0,
           exitLean: 0
         });
@@ -1159,8 +1186,45 @@
         }
       }
 
-      function scorePipe() {
+      function getPipePassProgress(pipe) {
+        if (!pipe || !Number.isFinite(pipe.scoreStartX) || !Number.isFinite(pipe.timeTargetPass)) {
+          return state.timeCycleProgress;
+        }
+
+        const scoreEndX = bird.x;
+        const currentScoreX = pipe.x + pipe.width;
+        const travel = Math.max(1, pipe.scoreStartX - scoreEndX);
+        const t = clamp((pipe.scoreStartX - currentScoreX) / travel, 0, 1);
+
+        return pipe.timeStartPass + (pipe.timeTargetPass - pipe.timeStartPass) * t;
+      }
+
+      function updateTimeCycleProgressFromPipes() {
+        if (state.mode !== "playing" || state.gameplayIntroActive) return;
+
+        const activePipe = state.pipes
+          .filter(pipe => !pipe.scored && Number.isFinite(pipe.timeTargetPass))
+          .sort((a, b) => a.timeTargetPass - b.timeTargetPass)[0];
+
+        if (!activePipe) return;
+
+        state.timeCycleProgress = Math.max(
+          state.timeCycleProgress,
+          getPipePassProgress(activePipe)
+        );
+      }
+
+      function scorePipe(pipe = null) {
         state.score += 1;
+
+        if (pipe && Number.isFinite(pipe.timeTargetPass)) {
+          state.timeColumnPasses = Math.max(state.timeColumnPasses, pipe.timeTargetPass);
+          state.timeCycleProgress = Math.max(state.timeCycleProgress, pipe.timeTargetPass);
+        } else {
+          state.timeColumnPasses += 1;
+          state.timeCycleProgress = Math.max(state.timeCycleProgress, state.timeColumnPasses);
+        }
+
         updateHud();
         state.flash = 0.05;
         burst(bird.x + bird.width * 0.18, bird.y - bird.height * 0.05, 10, "rgba(255,245,168,.75)", true);
@@ -1432,13 +1496,15 @@
 
           if (!pipe.scored && pipe.x + pipe.width < bird.x) {
             pipe.scored = true;
-            scorePipe();
+            scorePipe(pipe);
           }
 
           if (collides(pipe)) {
             gameOver();
           }
         }
+
+        updateTimeCycleProgressFromPipes();
 
         state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -240);
 
@@ -1481,6 +1547,42 @@
         }
       }
 
+      function getTimeBlend() {
+        const phaseSpan = TIME_CYCLE.holdColumns + TIME_CYCLE.fadeColumns;
+        const cycleSpan = phaseSpan * TIME_PHASES.length;
+        const cycleProgress = ((state.timeCycleProgress % cycleSpan) + cycleSpan) % cycleSpan;
+        const phaseIndex = Math.floor(cycleProgress / phaseSpan);
+        const withinPhase = cycleProgress - phaseIndex * phaseSpan;
+        const fromPhase = TIME_PHASES[phaseIndex];
+        const toPhase = TIME_PHASES[(phaseIndex + 1) % TIME_PHASES.length];
+
+        if (withinPhase < TIME_CYCLE.holdColumns) {
+          return [{ phase: fromPhase, alpha: 1 }];
+        }
+
+        const fadeT = clamp((withinPhase - TIME_CYCLE.holdColumns) / TIME_CYCLE.fadeColumns, 0, 1);
+        return [
+          { phase: fromPhase, alpha: 1 - fadeT },
+          { phase: toPhase, alpha: fadeT }
+        ];
+      }
+
+      function drawRepeatingImageAlpha(image, scroll, y, drawH, cropRight = 0, overlap = 0, alpha = 1) {
+        if (!image || alpha <= 0.001) return;
+
+        ctx.save();
+        ctx.globalAlpha *= clamp(alpha, 0, 1);
+        drawRepeatingImage(image, scroll, y, drawH, cropRight, overlap);
+        ctx.restore();
+      }
+
+      function drawTimeBackgroundLayer(layerImages, scroll, y, drawH, cropRight = 0, overlap = 0) {
+        for (const blend of getTimeBlend()) {
+          const image = layerImages[blend.phase] || layerImages.day;
+          drawRepeatingImageAlpha(image, scroll, y, drawH, cropRight, overlap, blend.alpha);
+        }
+      }
+
       function drawBackground() {
         // Draw from farthest layer to nearest layer:
         // clouds -> mountains -> trees -> plants -> game elements.
@@ -1503,8 +1605,13 @@
           1
         );
 
-        drawRepeatingImage(
-          img.backgroundTrees,
+        drawTimeBackgroundLayer(
+          {
+            day: img.backgroundTreesDay,
+            sunset: img.backgroundTreesSunset,
+            night: img.backgroundTreesNight,
+            sunrise: img.backgroundTreesSunrise
+          },
           state.bgScroll * 0.50,
           0,
           H,
