@@ -264,7 +264,10 @@
   <script>
     (() => {
       const ASSETS = {
-        backgroundClouds: "assets/background_clouds.png",
+        backgroundCloudsDay: "assets/background_clouds_day.png",
+        backgroundCloudsSunset: "assets/background_clouds_sunset.png",
+        backgroundCloudsNight: "assets/background_clouds_night.png",
+        backgroundCloudsSunrise: "assets/background_clouds_sunrise.png",
         backgroundMountainsDay: "assets/background_mountains_day.png",
         backgroundMountainsSunset: "assets/background_mountains_sunset.png",
         backgroundMountainsNight: "assets/background_mountains_night.png",
@@ -290,7 +293,7 @@
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
-      const GAME_VERSION = "v1.0.5";
+      const GAME_VERSION = "v1.0.6";
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
@@ -318,7 +321,10 @@
       let renderDPR = Math.min(window.devicePixelRatio || 1, 3);
 
       const img = {
-        backgroundClouds: new Image(),
+        backgroundCloudsDay: new Image(),
+        backgroundCloudsSunset: new Image(),
+        backgroundCloudsNight: new Image(),
+        backgroundCloudsSunrise: new Image(),
         backgroundMountainsDay: new Image(),
         backgroundMountainsSunset: new Image(),
         backgroundMountainsNight: new Image(),
@@ -341,7 +347,10 @@
         pillarColumn: new Image()
       };
 
-      img.backgroundClouds.src = ASSETS.backgroundClouds;
+      img.backgroundCloudsDay.src = ASSETS.backgroundCloudsDay;
+      img.backgroundCloudsSunset.src = ASSETS.backgroundCloudsSunset;
+      img.backgroundCloudsNight.src = ASSETS.backgroundCloudsNight;
+      img.backgroundCloudsSunrise.src = ASSETS.backgroundCloudsSunrise;
       img.backgroundMountainsDay.src = ASSETS.backgroundMountainsDay;
       img.backgroundMountainsSunset.src = ASSETS.backgroundMountainsSunset;
       img.backgroundMountainsNight.src = ASSETS.backgroundMountainsNight;
@@ -1637,8 +1646,13 @@
         // Draw from farthest layer to nearest layer:
         // clouds -> mountains -> trees -> plants -> game elements.
         // The foreground columns, bird, particles, and ground are drawn later.
-        drawRepeatingImage(
-          img.backgroundClouds,
+        drawTimeBackgroundLayer(
+          {
+            day: img.backgroundCloudsDay,
+            sunset: img.backgroundCloudsSunset,
+            night: img.backgroundCloudsNight,
+            sunrise: img.backgroundCloudsSunrise
+          },
           state.bgScroll * 0.16,
           0,
           H,
