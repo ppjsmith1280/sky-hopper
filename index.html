@@ -181,6 +181,35 @@
       color: rgba(255,255,255,.74);
     }
 
+    .version-badge {
+      position: absolute;
+      right: calc(var(--visible-right-inset, 0px) + env(safe-area-inset-right, 0px) + 8px * var(--ui-scale));
+      bottom: calc(var(--visible-bottom-inset, 0px) + env(safe-area-inset-bottom, 0px) + 6px * var(--ui-scale));
+      z-index: 3;
+      pointer-events: none;
+      padding: calc(2px * var(--ui-scale)) calc(4px * var(--ui-scale));
+      border-radius: calc(6px * var(--ui-scale));
+      font-size: calc(9px * var(--ui-scale));
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: .08em;
+      color: rgba(255, 255, 255, .58);
+      background: rgba(0, 30, 60, .12);
+      text-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+      transform: translateY(0);
+      opacity: 1;
+      transition: transform 420ms ease, opacity 420ms ease;
+    }
+
+    .version-badge.version-exit {
+      transform: translateY(calc(30px * var(--ui-scale)));
+      opacity: 0;
+    }
+
+    .version-badge.version-hidden {
+      display: none;
+    }
+
     .tap-zone {
       position: absolute;
       inset: 0;
@@ -216,6 +245,8 @@
           <p class="action" id="panelAction">Tap, click, or press Space to start</p>
           <p class="small" id="panelSmall">Pass through the ancient columns.</p>
         </div>
+
+        <div class="version-badge version-hidden" id="versionBadge" aria-hidden="true"></div>
       </div>
 
       <div class="tap-zone" id="tapZone" aria-hidden="true"></div>
@@ -244,6 +275,8 @@
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
+      const GAME_VERSION = "v1.0.0";
+
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
       ctx.imageSmoothingEnabled = true;
@@ -259,7 +292,8 @@
         title: document.getElementById("panelTitle"),
         subtitle: document.getElementById("panelSubtitle"),
         action: document.getElementById("panelAction"),
-        small: document.getElementById("panelSmall")
+        small: document.getElementById("panelSmall"),
+        version: document.getElementById("versionBadge")
       };
 
       const DESIGN_WIDTH = 402;
@@ -720,6 +754,28 @@
         ui.panel.classList.add("hidden");
       }
 
+      function showVersionBadge() {
+        if (!ui.version) return;
+        ui.version.textContent = GAME_VERSION;
+        ui.version.classList.remove("version-hidden");
+        ui.version.classList.remove("version-exit");
+      }
+
+      function slideAwayVersionBadge() {
+        if (!ui.version) return;
+        ui.version.classList.add("version-exit");
+        window.setTimeout(() => {
+          if (state.mode !== "ready") {
+            ui.version.classList.add("version-hidden");
+          }
+        }, 460);
+      }
+
+      function hideVersionBadge() {
+        if (!ui.version) return;
+        ui.version.classList.add("version-hidden");
+      }
+
       function updateHud() {
         ui.score.textContent = String(state.score);
         ui.best.textContent = String(state.best);
@@ -788,6 +844,8 @@
         stageEl.style.setProperty("--game-css-width", cssW + "px");
         stageEl.style.setProperty("--game-css-height", cssH + "px");
         stageEl.style.setProperty("--ui-scale", (cssW / BASE_WIDTH).toFixed(4));
+        stageEl.style.setProperty("--visible-right-inset", Math.max(0, (cssW - viewW) / 2) + "px");
+        stageEl.style.setProperty("--visible-bottom-inset", Math.max(0, (cssH - viewH) / 2) + "px");
 
         canvas.width = Math.round(DESIGN_WIDTH * renderDPR);
         canvas.height = Math.round(DESIGN_HEIGHT * renderDPR);
@@ -838,6 +896,7 @@
         hidePanel();
 
         if (state.hasStartedOnce) {
+          hideVersionBadge();
           beginRun();
           state.gameplayIntro = 0;
           state.gameplayIntroActive = true;
@@ -860,6 +919,7 @@
         state.titleBird.direction = -1;
         state.titleBird.pass = 0;
         state.titleBird.targetY = H * 0.42;
+        showVersionBadge();
       }
 
       function beginRun() {
@@ -869,6 +929,7 @@
         state.crashExiting = false;
         state.mode = "playing";
         hidePanel();
+        if (state.titleExit >= 1) hideVersionBadge();
 
         // The first tap starts the game and makes the bird flap.
         // Play the flap sound here too so iOS has a real SFX event on the
@@ -891,6 +952,7 @@
         // direction it was already flying.
         state.titleBird.vx = 980;
 
+        slideAwayVersionBadge();
         hidePanel();
       }
 
