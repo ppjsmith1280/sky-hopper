@@ -265,7 +265,10 @@
     (() => {
       const ASSETS = {
         backgroundClouds: "assets/background_clouds.png",
-        backgroundMountains: "assets/background_mountains.png",
+        backgroundMountainsDay: "assets/background_mountains_day.png",
+        backgroundMountainsSunset: "assets/background_mountains_sunset.png",
+        backgroundMountainsNight: "assets/background_mountains_night.png",
+        backgroundMountainsSunrise: "assets/background_mountains_sunrise.png",
         backgroundTreesDay: "assets/background_trees_day.png",
         backgroundTreesSunset: "assets/background_trees_sunset.png",
         backgroundTreesNight: "assets/background_trees_night.png",
@@ -274,7 +277,10 @@
         titleLogo: "assets/title.png",
         crashLogo: "assets/CRASH.png",
         feathers: "assets/feathers.png",
-        bird: "assets/bird_sheet.png",
+        birdDay: "assets/bird_sheet_day.png",
+        birdSunset: "assets/bird_sheet_sunset.png",
+        birdNight: "assets/bird_sheet_night.png",
+        birdSunrise: "assets/bird_sheet_sunrise.png",
         ground: "assets/ground.png",
         pillarCap: "assets/pillar_cap.png",
         pillarBase: "assets/pillar_base.png",
@@ -284,7 +290,7 @@
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
-      const GAME_VERSION = "v1.0.4";
+      const GAME_VERSION = "v1.0.5";
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
@@ -313,7 +319,10 @@
 
       const img = {
         backgroundClouds: new Image(),
-        backgroundMountains: new Image(),
+        backgroundMountainsDay: new Image(),
+        backgroundMountainsSunset: new Image(),
+        backgroundMountainsNight: new Image(),
+        backgroundMountainsSunrise: new Image(),
         backgroundTreesDay: new Image(),
         backgroundTreesSunset: new Image(),
         backgroundTreesNight: new Image(),
@@ -322,7 +331,10 @@
         titleLogo: new Image(),
         crashLogo: new Image(),
         feathers: new Image(),
-        bird: new Image(),
+        birdDay: new Image(),
+        birdSunset: new Image(),
+        birdNight: new Image(),
+        birdSunrise: new Image(),
         ground: new Image(),
         pillarCap: new Image(),
         pillarBase: new Image(),
@@ -330,7 +342,10 @@
       };
 
       img.backgroundClouds.src = ASSETS.backgroundClouds;
-      img.backgroundMountains.src = ASSETS.backgroundMountains;
+      img.backgroundMountainsDay.src = ASSETS.backgroundMountainsDay;
+      img.backgroundMountainsSunset.src = ASSETS.backgroundMountainsSunset;
+      img.backgroundMountainsNight.src = ASSETS.backgroundMountainsNight;
+      img.backgroundMountainsSunrise.src = ASSETS.backgroundMountainsSunrise;
       img.backgroundTreesDay.src = ASSETS.backgroundTreesDay;
       img.backgroundTreesSunset.src = ASSETS.backgroundTreesSunset;
       img.backgroundTreesNight.src = ASSETS.backgroundTreesNight;
@@ -339,7 +354,10 @@
       img.titleLogo.src = ASSETS.titleLogo;
       img.crashLogo.src = ASSETS.crashLogo;
       img.feathers.src = ASSETS.feathers;
-      img.bird.src = ASSETS.bird;
+      img.birdDay.src = ASSETS.birdDay;
+      img.birdSunset.src = ASSETS.birdSunset;
+      img.birdNight.src = ASSETS.birdNight;
+      img.birdSunrise.src = ASSETS.birdSunrise;
       img.ground.src = ASSETS.ground;
       img.pillarCap.src = ASSETS.pillarCap;
       img.pillarBase.src = ASSETS.pillarBase;
@@ -378,14 +396,21 @@
         maxSpeedBoost: 0.80
       };
 
-      // Time-of-day background testing settings. Counts are based on passed columns.
-      // Holds last for 2 column passes. Fades are calculated as a continuous
-      // per-frame blend across the next 2 column-pass span, not as column-step jumps.
+      // Time-of-day testing settings. Counts are based on passed columns.
+      // Fades are calculated continuously every frame across the full column span,
+      // so the blend changes in small increments instead of jumping at each pass.
       const TIME_PHASES = ["day", "sunset", "night", "sunrise"];
-      const TIME_CYCLE = {
-        holdColumns: 2,
-        fadeColumns: 2
-      };
+      const TIME_SEGMENTS = [
+        { from: "day", to: "day", columns: 10, type: "hold" },
+        { from: "day", to: "sunset", columns: 3, type: "fade" },
+        { from: "sunset", to: "sunset", columns: 5, type: "hold" },
+        { from: "sunset", to: "night", columns: 3, type: "fade" },
+        { from: "night", to: "night", columns: 10, type: "hold" },
+        { from: "night", to: "sunrise", columns: 3, type: "fade" },
+        { from: "sunrise", to: "sunrise", columns: 5, type: "hold" },
+        { from: "sunrise", to: "day", columns: 3, type: "fade" }
+      ];
+      const TIME_CYCLE_COLUMNS = TIME_SEGMENTS.reduce((total, segment) => total + segment.columns, 0);
 
       const BEST_KEY = "flap_tap_best";
       const LEGACY_BEST_KEY = "sky_hopper_best";
@@ -1566,23 +1591,30 @@
       }
 
       function getTimeBlend() {
-        const phaseSpan = TIME_CYCLE.holdColumns + TIME_CYCLE.fadeColumns;
-        const cycleSpan = phaseSpan * TIME_PHASES.length;
-        const cycleProgress = ((state.timeCycleProgress % cycleSpan) + cycleSpan) % cycleSpan;
-        const phaseIndex = Math.floor(cycleProgress / phaseSpan);
-        const withinPhase = cycleProgress - phaseIndex * phaseSpan;
-        const fromPhase = TIME_PHASES[phaseIndex];
-        const toPhase = TIME_PHASES[(phaseIndex + 1) % TIME_PHASES.length];
+        const cycleSpan = TIME_CYCLE_COLUMNS;
+        let progress = ((state.timeCycleProgress % cycleSpan) + cycleSpan) % cycleSpan;
 
-        if (withinPhase < TIME_CYCLE.holdColumns) {
-          return [{ phase: fromPhase, alpha: 1 }];
+        for (const segment of TIME_SEGMENTS) {
+          if (progress <= segment.columns) {
+            if (segment.type === "hold" || segment.from === segment.to) {
+              return [{ phase: segment.from, alpha: 1 }];
+            }
+
+            const fadeT = clamp(progress / Math.max(0.001, segment.columns), 0, 1);
+            return [
+              { phase: segment.from, alpha: 1 - fadeT },
+              { phase: segment.to, alpha: fadeT }
+            ];
+          }
+
+          progress -= segment.columns;
         }
 
-        const fadeT = clamp((withinPhase - TIME_CYCLE.holdColumns) / TIME_CYCLE.fadeColumns, 0, 1);
-        return [
-          { phase: fromPhase, alpha: 1 - fadeT },
-          { phase: toPhase, alpha: fadeT }
-        ];
+        return [{ phase: "day", alpha: 1 }];
+      }
+
+      function getPhaseImage(layerImages, phase) {
+        return layerImages[phase] || layerImages.day;
       }
 
       function drawRepeatingImageAlpha(image, scroll, y, drawH, cropRight = 0, overlap = 0, alpha = 1) {
@@ -1614,8 +1646,13 @@
           1
         );
 
-        drawRepeatingImage(
-          img.backgroundMountains,
+        drawTimeBackgroundLayer(
+          {
+            day: img.backgroundMountainsDay,
+            sunset: img.backgroundMountainsSunset,
+            night: img.backgroundMountainsNight,
+            sunrise: img.backgroundMountainsSunrise
+          },
           state.bgScroll * 0.30,
           0,
           H,
@@ -1748,11 +1785,60 @@
         }
       }
 
-      function drawBird() {
-        const frames = 4;
-        const frameW = img.bird.width / frames;
-        const sx = bird.frame * frameW;
+      function getBirdSheets() {
+        return {
+          day: img.birdDay,
+          sunset: img.birdSunset,
+          night: img.birdNight,
+          sunrise: img.birdSunrise
+        };
+      }
 
+      function drawBirdFrameFromSheet(sheet, sxFrame, sy, sw, sh, dx, dy, dw, dh, alpha) {
+        if (!sheet || !sheet.naturalWidth || alpha <= 0.001) return;
+
+        const frames = 4;
+        const frameW = sheet.width / frames;
+        const sx = sxFrame * frameW;
+
+        ctx.save();
+        ctx.globalAlpha *= clamp(alpha, 0, 1);
+        ctx.drawImage(
+          sheet,
+          sx + BOX.birdTrimX,
+          sy,
+          frameW - BOX.birdTrimX * 2,
+          sh,
+          dx,
+          dy,
+          dw,
+          dh
+        );
+        ctx.restore();
+      }
+
+      function drawTimeBirdFrame(dx, dy, dw, dh) {
+        const sheets = getBirdSheets();
+        const sy = BOX.birdSheet.y - BOX.birdTrimY;
+        const sh = BOX.birdSheet.h + BOX.birdTrimY * 2;
+
+        for (const blend of getTimeBlend()) {
+          drawBirdFrameFromSheet(
+            getPhaseImage(sheets, blend.phase),
+            bird.frame,
+            sy,
+            0,
+            sh,
+            dx,
+            dy,
+            dw,
+            dh,
+            blend.alpha
+          );
+        }
+      }
+
+      function drawBird() {
         ctx.save();
         ctx.translate(bird.x, bird.y);
         ctx.rotate(bird.angle);
@@ -1760,12 +1846,7 @@
         ctx.shadowBlur = 16;
         ctx.shadowOffsetY = 8;
 
-        ctx.drawImage(
-          img.bird,
-          sx + BOX.birdTrimX,
-          BOX.birdSheet.y - BOX.birdTrimY,
-          frameW - BOX.birdTrimX * 2,
-          BOX.birdSheet.h + BOX.birdTrimY * 2,
+        drawTimeBirdFrame(
           -bird.width / 2,
           -bird.height / 2,
           bird.width,
@@ -1783,9 +1864,6 @@
       }
 
       function drawTitleBird(x, y, width, alpha) {
-        const frames = 4;
-        const frameW = img.bird.width / frames;
-        const sx = bird.frame * frameW;
         const height = width * 0.76;
 
         ctx.save();
@@ -1796,12 +1874,7 @@
         ctx.shadowBlur = 18;
         ctx.shadowOffsetY = 8;
 
-        ctx.drawImage(
-          img.bird,
-          sx + BOX.birdTrimX,
-          BOX.birdSheet.y - BOX.birdTrimY,
-          frameW - BOX.birdTrimX * 2,
-          BOX.birdSheet.h + BOX.birdTrimY * 2,
+        drawTimeBirdFrame(
           -width / 2,
           -height / 2,
           width,
@@ -1852,9 +1925,6 @@
         // Title bird stays at the earlier title-screen size even though
         // the gameplay bird was enlarged.
         const titleBirdW = W * 0.105 * TITLE_BIRD_SCALE * 1.62;
-        const frames = 4;
-        const frameW = img.bird.width / frames;
-        const sx = bird.frame * frameW;
         const titleBirdH = titleBirdW * 0.76;
 
         ctx.save();
@@ -1872,12 +1942,7 @@
         ctx.shadowBlur = 18;
         ctx.shadowOffsetY = 8;
 
-        ctx.drawImage(
-          img.bird,
-          sx + BOX.birdTrimX,
-          BOX.birdSheet.y - BOX.birdTrimY,
-          frameW - BOX.birdTrimX * 2,
-          BOX.birdSheet.h + BOX.birdTrimY * 2,
+        drawTimeBirdFrame(
           -titleBirdW / 2,
           -titleBirdH / 2,
           titleBirdW,
