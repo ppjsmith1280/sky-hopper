@@ -20,6 +20,15 @@
       --text: #ffffff;
       --muted: rgba(255,255,255,.85);
       --accent: #ffe48a;
+      --gold-1: #ffe89a;
+      --gold-2: #ffd056;
+      --gold-3: #f0ab28;
+      --gold-4: #9c5d0c;
+      --gold-5: #5e3304;
+      --gold-shadow: rgba(86, 44, 4, 0.34);
+      --menu-text-dark: #553108;
+      --menu-text-soft: #6e430e;
+      --menu-box: #fff0bf;
     }
 
     * { box-sizing: border-box; }
@@ -216,6 +225,274 @@
       display: none;
     }
 
+
+    .menu-controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: calc(var(--visible-bottom-inset, 0px) + env(safe-area-inset-bottom, 0px) + 14px * var(--ui-scale));
+      z-index: 7;
+      pointer-events: none;
+      opacity: 1;
+      transform: translateY(0);
+      transition: transform 420ms ease, opacity 420ms ease;
+    }
+
+    .menu-controls.menu-hidden {
+      display: none;
+    }
+
+    .menu-controls.menu-exit {
+      opacity: 0;
+      transform: translateY(calc(44px * var(--ui-scale)));
+    }
+
+    .menu-button {
+      position: absolute;
+      bottom: 0;
+      width: calc(52px * var(--ui-scale));
+      height: calc(52px * var(--ui-scale));
+      padding: 0;
+      border: calc(3px * var(--ui-scale)) solid #673306;
+      border-radius: calc(18px * var(--ui-scale));
+      pointer-events: auto;
+      cursor: pointer;
+      color: #4d2602;
+      background:
+        radial-gradient(ellipse at 34% 20%, rgba(255,255,255,.92) 0%, rgba(255,255,255,.36) 18%, rgba(255,255,255,0) 42%),
+        linear-gradient(180deg, #fff2a8 0%, #ffe05f 33%, #ffb326 58%, #b85b08 100%);
+      box-shadow:
+        0 calc(7px * var(--ui-scale)) 0 #4a1d00,
+        0 calc(12px * var(--ui-scale)) calc(18px * var(--ui-scale)) rgba(0,0,0,.34),
+        inset 0 calc(2px * var(--ui-scale)) 0 rgba(255,255,255,.78),
+        inset 0 calc(-8px * var(--ui-scale)) calc(10px * var(--ui-scale)) rgba(84,31,0,.40),
+        inset 0 0 0 calc(1px * var(--ui-scale)) rgba(255,248,200,.68);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 0;
+      transform: translateY(0) scale(1);
+      transition: transform 140ms ease, filter 140ms ease;
+    }
+
+    .menu-button:active {
+      transform: translateY(calc(2px * var(--ui-scale))) scale(.96);
+      filter: brightness(1.08);
+    }
+
+    .menu-button svg {
+      width: calc(24px * var(--ui-scale));
+      height: calc(24px * var(--ui-scale));
+      display: block;
+      flex: 0 0 auto;
+      filter:
+        drop-shadow(0 calc(1px * var(--ui-scale)) 0 rgba(255,255,255,.48))
+        drop-shadow(0 calc(2px * var(--ui-scale)) calc(2px * var(--ui-scale)) rgba(74,29,0,.26));
+    }
+
+    .menu-button-left {
+      left: calc(var(--visible-right-inset, 0px) + env(safe-area-inset-left, 0px) + 14px * var(--ui-scale));
+    }
+
+    .menu-button-right {
+      right: calc(var(--visible-right-inset, 0px) + env(safe-area-inset-right, 0px) + 14px * var(--ui-scale));
+    }
+
+    .game-modal {
+      position: absolute;
+      inset: 0;
+      z-index: 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: calc(18px * var(--ui-scale));
+      background: rgba(36, 20, 0, .22);
+      pointer-events: auto;
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+    }
+
+    .game-modal.hidden {
+      display: none;
+    }
+
+    .modal-card {
+      width: min(88%, calc(350px * var(--ui-scale)));
+      max-height: min(76%, calc(600px * var(--ui-scale)));
+      overflow: auto;
+      border: calc(4px * var(--ui-scale)) solid #6b3507;
+      border-radius: calc(26px * var(--ui-scale));
+      padding: calc(18px * var(--ui-scale));
+      color: #4f2702;
+      background:
+        radial-gradient(ellipse at 26% 12%, rgba(255,255,255,.72) 0%, rgba(255,255,255,.24) 18%, rgba(255,255,255,0) 42%),
+        linear-gradient(180deg, #fff0a4 0%, #ffd852 28%, #ffb12a 56%, #b95d0b 100%);
+      box-shadow:
+        0 calc(8px * var(--ui-scale)) 0 #4a1d00,
+        0 calc(20px * var(--ui-scale)) calc(42px * var(--ui-scale)) rgba(0,0,0,.34),
+        inset 0 calc(3px * var(--ui-scale)) 0 rgba(255,255,255,.78),
+        inset 0 calc(-16px * var(--ui-scale)) calc(22px * var(--ui-scale)) rgba(85,31,0,.30),
+        inset 0 0 0 calc(1px * var(--ui-scale)) rgba(255,248,200,.60);
+      text-shadow: 0 1px 0 rgba(255,255,255,.42);
+    }
+
+    .modal-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(10px * var(--ui-scale));
+      margin-bottom: calc(10px * var(--ui-scale));
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: calc(26px * var(--ui-scale));
+      line-height: 1;
+      letter-spacing: .02em;
+    }
+
+    .modal-close {
+      width: calc(38px * var(--ui-scale));
+      height: calc(38px * var(--ui-scale));
+      border: calc(3px * var(--ui-scale)) solid #673306;
+      border-radius: calc(14px * var(--ui-scale));
+      color: #4d2602;
+      font-size: calc(22px * var(--ui-scale));
+      font-weight: 950;
+      cursor: pointer;
+      background:
+        radial-gradient(ellipse at 32% 20%, rgba(255,255,255,.86), rgba(255,255,255,0) 42%),
+        linear-gradient(180deg, #fff2a8 0%, #ffd447 48%, #b85b08 100%);
+      box-shadow:
+        0 calc(4px * var(--ui-scale)) 0 #4a1d00,
+        0 calc(8px * var(--ui-scale)) calc(10px * var(--ui-scale)) rgba(0,0,0,.22),
+        inset 0 calc(2px * var(--ui-scale)) 0 rgba(255,255,255,.72),
+        inset 0 calc(-5px * var(--ui-scale)) calc(7px * var(--ui-scale)) rgba(84,31,0,.34);
+    }
+
+    .setting-group,
+    .stats-group {
+      margin-top: calc(14px * var(--ui-scale));
+      padding-top: calc(12px * var(--ui-scale));
+      border-top: 1px solid rgba(113, 66, 10, .22);
+    }
+
+    .setting-label {
+      display: block;
+      margin: 0 0 calc(8px * var(--ui-scale));
+      font-size: calc(12px * var(--ui-scale));
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--menu-text-soft);
+    }
+
+    .difficulty-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: calc(8px * var(--ui-scale));
+    }
+
+    .difficulty-option {
+      border: calc(2px * var(--ui-scale)) solid #7a3d08;
+      border-radius: calc(15px * var(--ui-scale));
+      min-height: calc(44px * var(--ui-scale));
+      padding: calc(10px * var(--ui-scale)) calc(8px * var(--ui-scale));
+      cursor: pointer;
+      color: #553008;
+      font-weight: 950;
+      font-size: calc(13px * var(--ui-scale));
+      background:
+        radial-gradient(ellipse at 28% 18%, rgba(255,255,255,.70), rgba(255,255,255,0) 42%),
+        linear-gradient(180deg, #fff4be 0%, #ffd565 48%, #d88917 100%);
+      box-shadow:
+        0 calc(3px * var(--ui-scale)) 0 #5b2703,
+        inset 0 calc(2px * var(--ui-scale)) 0 rgba(255,255,255,.66),
+        inset 0 calc(-5px * var(--ui-scale)) calc(7px * var(--ui-scale)) rgba(84,31,0,.20);
+    }
+
+    .difficulty-option.active {
+      color: #3e1d00;
+      background:
+        radial-gradient(ellipse at 28% 18%, rgba(255,255,255,.90), rgba(255,255,255,0) 40%),
+        linear-gradient(180deg, #fff7b8 0%, #ffdf54 32%, #ffad18 60%, #9e4b05 100%);
+      box-shadow:
+        0 calc(4px * var(--ui-scale)) 0 #4a1d00,
+        0 calc(6px * var(--ui-scale)) calc(12px * var(--ui-scale)) rgba(0,0,0,.18),
+        inset 0 calc(2px * var(--ui-scale)) 0 rgba(255,255,255,.76),
+        inset 0 calc(-6px * var(--ui-scale)) calc(8px * var(--ui-scale)) rgba(84,31,0,.32);
+      text-shadow: 0 1px 0 rgba(255,255,255,.52);
+    }
+
+    .range-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: calc(10px * var(--ui-scale));
+      align-items: center;
+      margin-top: calc(10px * var(--ui-scale));
+      font-size: calc(14px * var(--ui-scale));
+      font-weight: 900;
+      color: var(--menu-text-dark);
+      min-height: calc(24px * var(--ui-scale));
+    }
+
+    .range-row span:last-child {
+      color: var(--menu-text-dark);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .volume-slider {
+      width: 100%;
+      accent-color: #d08b14;
+      margin: calc(8px * var(--ui-scale)) 0 calc(4px * var(--ui-scale));
+    }
+
+    .stats-list {
+      display: grid;
+      gap: calc(10px * var(--ui-scale));
+    }
+
+    .stat-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: calc(12px * var(--ui-scale));
+      min-height: calc(52px * var(--ui-scale));
+      padding: calc(10px * var(--ui-scale)) calc(12px * var(--ui-scale));
+      border: calc(2px * var(--ui-scale)) solid #7a3d08;
+      border-radius: calc(16px * var(--ui-scale));
+      background:
+        radial-gradient(ellipse at 24% 16%, rgba(255,255,255,.56), rgba(255,255,255,0) 42%),
+        linear-gradient(180deg, #fff4be 0%, #ffd565 48%, #d88917 100%);
+      box-shadow:
+        0 calc(3px * var(--ui-scale)) 0 #5b2703,
+        inset 0 calc(2px * var(--ui-scale)) 0 rgba(255,255,255,.60),
+        inset 0 calc(-5px * var(--ui-scale)) calc(7px * var(--ui-scale)) rgba(84,31,0,.18);
+    }
+
+    .stat-name {
+      font-size: calc(13px * var(--ui-scale));
+      color: var(--menu-text-soft);
+      font-weight: 900;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      line-height: 1.15;
+      display: flex;
+      align-items: center;
+      min-height: calc(24px * var(--ui-scale));
+    }
+
+    .stat-value {
+      font-size: calc(24px * var(--ui-scale));
+      font-weight: 950;
+      color: var(--menu-text-dark);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      min-height: calc(24px * var(--ui-scale));
+    }
+
     .tap-zone {
       position: absolute;
       inset: 0;
@@ -234,7 +511,7 @@
       <canvas id="game" width="402" height="874" aria-label="Flap Tap game"></canvas>
 
       <div class="hud">
-        <div class="chips">
+        <div class="chips" id="hudChips">
           <div class="chip">
             <span class="label">Score</span>
             <span class="value" id="score">0</span>
@@ -253,6 +530,74 @@
         </div>
 
         <div class="version-badge version-hidden" id="versionBadge" aria-hidden="true"></div>
+
+        <div class="menu-controls menu-hidden" id="menuControls" aria-hidden="true">
+          <button class="menu-button menu-button-left" id="settingsButton" type="button" aria-label="Settings">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path fill="currentColor" d="M36.8 6.5 39.2 13c1.4.5 2.7 1 4 1.7l6.2-2.9 6.1 6.1-2.9 6.2c.7 1.3 1.3 2.6 1.7 4l6.5 2.4v8.7l-6.5 2.4c-.5 1.4-1 2.7-1.7 4l2.9 6.2-6.1 6.1-6.2-2.9c-1.3.7-2.6 1.3-4 1.7l-2.4 6.5h-8.7l-2.4-6.5c-1.4-.5-2.7-1-4-1.7l-6.2 2.9-6.1-6.1 2.9-6.2c-.7-1.3-1.3-2.6-1.7-4l-6.5-2.4v-8.7l6.5-2.4c.5-1.4 1-2.7 1.7-4l-2.9-6.2 6.1-6.1 6.2 2.9c1.3-.7 2.6-1.3 4-1.7l2.4-6.5h8.7Zm-4.4 16.2a9.7 9.7 0 1 0 0 19.4 9.7 9.7 0 0 0 0-19.4Z"/>
+            </svg>
+          </button>
+          <button class="menu-button menu-button-right" id="statsButton" type="button" aria-label="Stats">
+            <svg viewBox="0 0 64 64" aria-hidden="true">
+              <path fill="currentColor" d="M10 51h44a4 4 0 0 1 0 8H10a4 4 0 0 1 0-8Zm5-20h9v17h-9V31Zm13-15h9v32h-9V16Zm13 8h9v24h-9V24Z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="game-modal hidden" id="settingsMenu" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+          <div class="modal-card">
+            <div class="modal-topline">
+              <h2 class="modal-title" id="settingsTitle">Settings</h2>
+              <button class="modal-close" id="settingsClose" type="button" aria-label="Close settings">×</button>
+            </div>
+
+            <div class="setting-group">
+              <span class="setting-label">Difficulty</span>
+              <div class="difficulty-options" id="difficultyOptions">
+                <button class="difficulty-option" type="button" data-difficulty="beginner">Beginner</button>
+                <button class="difficulty-option" type="button" data-difficulty="easy">Easy</button>
+                <button class="difficulty-option" type="button" data-difficulty="normal">Normal</button>
+                <button class="difficulty-option" type="button" data-difficulty="hard">Hard</button>
+                <button class="difficulty-option" type="button" data-difficulty="explorer">Explorer</button>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <span class="setting-label">Audio</span>
+              <label class="range-row" for="musicVolume"><span>Music</span><span id="musicVolumeValue">100%</span></label>
+              <input class="volume-slider" id="musicVolume" type="range" min="0" max="100" step="1" value="100">
+              <label class="range-row" for="sfxVolume"><span>Game Sounds</span><span id="sfxVolumeValue">100%</span></label>
+              <input class="volume-slider" id="sfxVolume" type="range" min="0" max="100" step="1" value="100">
+            </div>
+          </div>
+        </div>
+
+        <div class="game-modal hidden" id="statsMenu" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+          <div class="modal-card">
+            <div class="modal-topline">
+              <h2 class="modal-title" id="statsTitle">Stats</h2>
+              <button class="modal-close" id="statsClose" type="button" aria-label="Close stats">×</button>
+            </div>
+
+            <div class="stats-group">
+              <span class="setting-label">High Score by Difficulty</span>
+              <div class="stats-list">
+                <div class="stat-line"><span class="stat-name">Beginner</span><span class="stat-value" id="statBestBeginner">0</span></div>
+                <div class="stat-line"><span class="stat-name">Easy</span><span class="stat-value" id="statBestEasy">0</span></div>
+                <div class="stat-line"><span class="stat-name">Normal</span><span class="stat-value" id="statBestNormal">0</span></div>
+                <div class="stat-line"><span class="stat-name">Hard</span><span class="stat-value" id="statBestHard">0</span></div>
+              </div>
+            </div>
+
+            <div class="stats-group">
+              <span class="setting-label">Lifetime Stats</span>
+              <div class="stats-list">
+                <div class="stat-line"><span class="stat-name">Columns Passed</span><span class="stat-value" id="statColumnsPassed">0</span></div>
+                <div class="stat-line"><span class="stat-name">Total Flaps</span><span class="stat-value" id="statTotalFlaps">0</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="tap-zone" id="tapZone" aria-hidden="true"></div>
@@ -299,7 +644,7 @@
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
-      const GAME_VERSION = "v1.0.16";
+      const GAME_VERSION = "v1.0.19";
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
@@ -317,12 +662,31 @@
       const ui = {
         score: document.getElementById("score"),
         best: document.getElementById("best"),
+        hudChips: document.getElementById("hudChips"),
         panel: document.getElementById("panel"),
         title: document.getElementById("panelTitle"),
         subtitle: document.getElementById("panelSubtitle"),
         action: document.getElementById("panelAction"),
         small: document.getElementById("panelSmall"),
-        version: document.getElementById("versionBadge")
+        version: document.getElementById("versionBadge"),
+        menuControls: document.getElementById("menuControls"),
+        settingsButton: document.getElementById("settingsButton"),
+        statsButton: document.getElementById("statsButton"),
+        settingsMenu: document.getElementById("settingsMenu"),
+        statsMenu: document.getElementById("statsMenu"),
+        settingsClose: document.getElementById("settingsClose"),
+        statsClose: document.getElementById("statsClose"),
+        difficultyOptions: document.getElementById("difficultyOptions"),
+        musicVolume: document.getElementById("musicVolume"),
+        musicVolumeValue: document.getElementById("musicVolumeValue"),
+        sfxVolume: document.getElementById("sfxVolume"),
+        sfxVolumeValue: document.getElementById("sfxVolumeValue"),
+        statBestBeginner: document.getElementById("statBestBeginner"),
+        statBestEasy: document.getElementById("statBestEasy"),
+        statBestNormal: document.getElementById("statBestNormal"),
+        statBestHard: document.getElementById("statBestHard"),
+        statColumnsPassed: document.getElementById("statColumnsPassed"),
+        statTotalFlaps: document.getElementById("statTotalFlaps")
       };
 
       const DESIGN_WIDTH = 402;
@@ -429,32 +793,184 @@
         maxSpeedBoost: 0.80
       };
 
+      const DIFFICULTY_MODES = {
+        beginner: {
+          label: "Beginner",
+          speedFactor: 0.75,
+          spawnIntervalFactor: 1.25,
+          gapFactor: 1.25,
+          progression: 0,
+          noPipes: false
+        },
+        easy: {
+          label: "Easy",
+          speedFactor: 0.75,
+          spawnIntervalFactor: 1.25,
+          gapFactor: 1.25,
+          progression: 1,
+          noPipes: false
+        },
+        normal: {
+          label: "Normal",
+          speedFactor: 1,
+          spawnIntervalFactor: 1,
+          gapFactor: 1,
+          progression: 1,
+          noPipes: false
+        },
+        hard: {
+          label: "Hard",
+          speedFactor: 1.25,
+          spawnIntervalFactor: 0.75,
+          gapFactor: 0.85,
+          progression: 1,
+          noPipes: false
+        },
+        explorer: {
+          label: "Explorer",
+          speedFactor: 1,
+          spawnIntervalFactor: 1,
+          gapFactor: 1,
+          progression: 0,
+          noPipes: true
+        }
+      };
+
       // Time-of-day cycle settings. These are real gameplay seconds.
       // The clock only advances while the bird is actively in a run. If the bird
       // crashes, the current phase is held and resumes when the user starts again.
       const TIME_PHASES = ["day", "sunset", "night", "sunrise"];
+      const LAYER_PHASE_GROUPS = ["foreground", "plants", "trees", "mountains", "sky"];
+      const TIME_FADE_DURATION = 2;
+      const TIME_FADE_STAGGER = 0.5;
       const TIME_SEGMENTS = [
         { from: "day", to: "day", seconds: 10, type: "hold" },
-        { from: "day", to: "sunset", seconds: 2, type: "fade" },
+        { from: "day", to: "sunset", seconds: TIME_FADE_DURATION, type: "fade" },
         { from: "sunset", to: "sunset", seconds: 2, type: "hold" },
-        { from: "sunset", to: "night", seconds: 2, type: "fade" },
+        { from: "sunset", to: "night", seconds: TIME_FADE_DURATION, type: "fade" },
         { from: "night", to: "night", seconds: 10, type: "hold" },
-        { from: "night", to: "sunrise", seconds: 2, type: "fade" },
+        { from: "night", to: "sunrise", seconds: TIME_FADE_DURATION, type: "fade" },
         { from: "sunrise", to: "sunrise", seconds: 3, type: "hold" },
-        { from: "sunrise", to: "day", seconds: 2, type: "fade" }
+        { from: "sunrise", to: "day", seconds: TIME_FADE_DURATION, type: "fade" }
       ];
-      const TIME_CYCLE_SECONDS = TIME_SEGMENTS.reduce((total, segment) => total + segment.seconds, 0);
+
+      function getSegmentDuration(segment) {
+        if (segment.type !== "fade" || segment.from === segment.to) return segment.seconds;
+        return segment.seconds + TIME_FADE_STAGGER * (LAYER_PHASE_GROUPS.length - 1);
+      }
+
+      const TIME_CYCLE_SECONDS = TIME_SEGMENTS.reduce((total, segment) => total + getSegmentDuration(segment), 0);
 
       const BEST_KEY = "flap_tap_best";
       const LEGACY_BEST_KEY = "sky_hopper_best";
+      const BEST_SCORES_KEY = "flap_tap_best_scores_v1";
+      const SETTINGS_KEY = "flap_tap_settings_v1";
+      const STATS_KEY = "flap_tap_stats_v1";
 
-      function readBestScore() {
-        return Number(localStorage.getItem(BEST_KEY) || localStorage.getItem(LEGACY_BEST_KEY) || 0);
+      const SETTINGS_DEFAULTS = {
+        difficulty: "normal",
+        musicVolume: 1,
+        sfxVolume: 1
+      };
+
+      const BEST_SCORES_DEFAULTS = {
+        beginner: 0,
+        easy: 0,
+        normal: 0,
+        hard: 0
+      };
+
+      const STATS_DEFAULTS = {
+        totalColumnsPassed: 0,
+        totalFlaps: 0
+      };
+
+      function readJson(key, fallback) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) return { ...fallback };
+          return { ...fallback, ...JSON.parse(raw) };
+        } catch (err) {
+          return { ...fallback };
+        }
       }
 
-      function saveBestScore(score) {
-        localStorage.setItem(BEST_KEY, String(score));
-        localStorage.setItem(LEGACY_BEST_KEY, String(score));
+      function writeJson(key, value) {
+        try {
+          localStorage.setItem(key, JSON.stringify(value));
+        } catch (err) {
+          // Ignore storage failures so private browsing or full storage never breaks the game.
+        }
+      }
+
+      function readBestScore() {
+        try {
+          return Number(localStorage.getItem(BEST_KEY) || localStorage.getItem(LEGACY_BEST_KEY) || 0);
+        } catch (err) {
+          return 0;
+        }
+      }
+
+      function saveLegacyBestScore(score) {
+        try {
+          localStorage.setItem(BEST_KEY, String(score));
+          localStorage.setItem(LEGACY_BEST_KEY, String(score));
+        } catch (err) {
+          // Ignore storage failures.
+        }
+      }
+
+      function normalizeBestScores(raw) {
+        const bests = { ...BEST_SCORES_DEFAULTS, ...(raw || {}) };
+        for (const key of Object.keys(BEST_SCORES_DEFAULTS)) {
+          bests[key] = Math.max(0, Number(bests[key]) || 0);
+        }
+        return bests;
+      }
+
+      const legacyBestScore = readBestScore();
+      const settings = readJson(SETTINGS_KEY, SETTINGS_DEFAULTS);
+      const bestScores = normalizeBestScores(readJson(BEST_SCORES_KEY, BEST_SCORES_DEFAULTS));
+      const lifetimeStats = readJson(STATS_KEY, STATS_DEFAULTS);
+
+      if (!bestScores.normal) {
+        bestScores.normal = Math.max(bestScores.normal, legacyBestScore);
+      }
+
+      if (!["beginner", "easy", "normal", "hard", "explorer"].includes(settings.difficulty)) {
+        settings.difficulty = "normal";
+      }
+      const loadedMusicVolume = Number(settings.musicVolume);
+      const loadedSfxVolume = Number(settings.sfxVolume);
+      settings.musicVolume = Number.isFinite(loadedMusicVolume) ? Math.max(0, Math.min(1, loadedMusicVolume)) : SETTINGS_DEFAULTS.musicVolume;
+      settings.sfxVolume = Number.isFinite(loadedSfxVolume) ? Math.max(0, Math.min(1, loadedSfxVolume)) : SETTINGS_DEFAULTS.sfxVolume;
+      lifetimeStats.totalColumnsPassed = Math.max(0, Number(lifetimeStats.totalColumnsPassed) || 0);
+      lifetimeStats.totalFlaps = Math.max(0, Number(lifetimeStats.totalFlaps) || 0);
+      writeJson(SETTINGS_KEY, settings);
+      writeJson(BEST_SCORES_KEY, bestScores);
+      writeJson(STATS_KEY, lifetimeStats);
+
+      function saveSettings() {
+        writeJson(SETTINGS_KEY, settings);
+      }
+
+      function saveBestScores() {
+        writeJson(BEST_SCORES_KEY, bestScores);
+      }
+
+      function saveStats() {
+        writeJson(STATS_KEY, lifetimeStats);
+      }
+
+      function currentScoredDifficultyKey() {
+        return ["beginner", "easy", "normal", "hard"].includes(settings.difficulty)
+          ? settings.difficulty
+          : null;
+      }
+
+      function getCurrentBestScore() {
+        const key = currentScoredDifficultyKey();
+        return key ? bestScores[key] || 0 : 0;
       }
 
       const state = {
@@ -464,7 +980,7 @@
         groundScroll: 0,
         spawnTimer: 0,
         score: 0,
-        best: readBestScore(),
+        best: getCurrentBestScore(),
         flash: 0,
         shake: 0,
         pipes: [],
@@ -490,7 +1006,9 @@
         crashFeathers: [],
         hasStartedOnce: false,
         columnsBehindGround: false,
-        timeCycleProgress: 0
+        timeCycleProgress: 0,
+        menuControlsVisible: false,
+        imagesReady: false
       };
 
       let audioUnlocked = false;
@@ -575,7 +1093,7 @@
           const gain = ctxAudio.createGain();
 
           source.buffer = buffer;
-          gain.gain.value = volume;
+          gain.gain.value = volume * settings.sfxVolume;
 
           source.connect(gain);
           gain.connect(ctxAudio.destination);
@@ -630,7 +1148,7 @@
 
           source.buffer = buffer;
           source.loop = true;
-          gain.gain.value = 0.45;
+          gain.gain.value = settings.musicVolume;
 
           source.connect(gain);
           gain.connect(ctxAudio.destination);
@@ -805,25 +1323,46 @@
       const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
       const rand = (min, max) => Math.random() * (max - min) + min;
 
+      function currentDifficultyProfile() {
+        return DIFFICULTY_MODES[settings.difficulty] || DIFFICULTY_MODES.normal;
+      }
+
+      function currentDifficultyScore() {
+        return state.score * currentDifficultyProfile().progression;
+      }
+
       function currentGap() {
-        const startGap = clamp(H * DIFFICULTY.baseGapRatio, DIFFICULTY.minGapPx, DIFFICULTY.maxGapPx);
+        const profile = currentDifficultyProfile();
+        const difficultyScore = currentDifficultyScore();
+        const startGap = clamp(
+          H * DIFFICULTY.baseGapRatio * profile.gapFactor,
+          DIFFICULTY.minGapPx * Math.min(1, profile.gapFactor),
+          DIFFICULTY.maxGapPx * Math.max(1, profile.gapFactor)
+        );
+
         return clamp(
-          startGap - state.score * DIFFICULTY.gapTightenPerPoint,
-          DIFFICULTY.minGapPx,
-          DIFFICULTY.maxGapPx
+          startGap - difficultyScore * DIFFICULTY.gapTightenPerPoint,
+          DIFFICULTY.minGapPx * Math.min(1, profile.gapFactor),
+          DIFFICULTY.maxGapPx * Math.max(1, profile.gapFactor)
         );
       }
 
       function currentSpawnInterval() {
+        const profile = currentDifficultyProfile();
+        const difficultyScore = currentDifficultyScore();
+
         return Math.max(
-          DIFFICULTY.minSpawnInterval,
-          DIFFICULTY.baseSpawnInterval - state.score * DIFFICULTY.spawnTightenPerPoint
+          DIFFICULTY.minSpawnInterval * profile.spawnIntervalFactor,
+          DIFFICULTY.baseSpawnInterval * profile.spawnIntervalFactor - difficultyScore * DIFFICULTY.spawnTightenPerPoint
         );
       }
 
       function currentSpeed() {
-        return state.worldSpeed * (
-          1 + Math.min(DIFFICULTY.maxSpeedBoost, state.score * DIFFICULTY.speedIncreasePerPoint)
+        const profile = currentDifficultyProfile();
+        const difficultyScore = currentDifficultyScore();
+
+        return state.worldSpeed * profile.speedFactor * (
+          1 + Math.min(DIFFICULTY.maxSpeedBoost, difficultyScore * DIFFICULTY.speedIncreasePerPoint)
         );
       }
 
@@ -861,9 +1400,132 @@
         ui.version.classList.add("version-hidden");
       }
 
+      function updateHudVisibility() {
+        if (!ui.hudChips) return;
+        ui.hudChips.style.display = settings.difficulty === "explorer" ? "none" : "flex";
+      }
+
       function updateHud() {
+        state.best = getCurrentBestScore();
         ui.score.textContent = String(state.score);
         ui.best.textContent = String(state.best);
+        updateHudVisibility();
+      }
+
+      function applyAudioSettings() {
+        if (musicGain) {
+          musicGain.gain.value = settings.musicVolume;
+        }
+      }
+
+      function updateSettingsUI() {
+        if (!ui.difficultyOptions) return;
+
+        ui.difficultyOptions.querySelectorAll(".difficulty-option").forEach(button => {
+          button.classList.toggle("active", button.dataset.difficulty === settings.difficulty);
+        });
+
+        if (ui.musicVolume) {
+          ui.musicVolume.value = Math.round(settings.musicVolume * 100);
+          ui.musicVolumeValue.textContent = `${Math.round(settings.musicVolume * 100)}%`;
+        }
+
+        if (ui.sfxVolume) {
+          ui.sfxVolume.value = Math.round(settings.sfxVolume * 100);
+          ui.sfxVolumeValue.textContent = `${Math.round(settings.sfxVolume * 100)}%`;
+        }
+      }
+
+      function updateStatsUI() {
+        if (ui.statBestBeginner) ui.statBestBeginner.textContent = String(bestScores.beginner || 0);
+        if (ui.statBestEasy) ui.statBestEasy.textContent = String(bestScores.easy || 0);
+        if (ui.statBestNormal) ui.statBestNormal.textContent = String(bestScores.normal || 0);
+        if (ui.statBestHard) ui.statBestHard.textContent = String(bestScores.hard || 0);
+        if (ui.statColumnsPassed) ui.statColumnsPassed.textContent = String(lifetimeStats.totalColumnsPassed || 0);
+        if (ui.statTotalFlaps) ui.statTotalFlaps.textContent = String(lifetimeStats.totalFlaps || 0);
+      }
+
+      function recordFlap() {
+        lifetimeStats.totalFlaps += 1;
+        saveStats();
+        updateStatsUI();
+      }
+
+      function recordColumnPass() {
+        lifetimeStats.totalColumnsPassed += 1;
+        saveStats();
+        updateStatsUI();
+      }
+
+      function recordHighestScore(score) {
+        const key = currentScoredDifficultyKey();
+        if (!key) return;
+
+        const nextBest = Math.max(bestScores[key] || 0, score);
+        bestScores[key] = nextBest;
+        state.best = nextBest;
+
+        if (key === "normal") {
+          saveLegacyBestScore(nextBest);
+        }
+
+        saveBestScores();
+        updateHud();
+        updateStatsUI();
+      }
+
+      function isMenuOpen() {
+        return (ui.settingsMenu && !ui.settingsMenu.classList.contains("hidden")) ||
+          (ui.statsMenu && !ui.statsMenu.classList.contains("hidden"));
+      }
+
+      function closeMenus() {
+        if (ui.settingsMenu) ui.settingsMenu.classList.add("hidden");
+        if (ui.statsMenu) ui.statsMenu.classList.add("hidden");
+      }
+
+      function openSettingsMenu() {
+        updateSettingsUI();
+        if (ui.statsMenu) ui.statsMenu.classList.add("hidden");
+        if (ui.settingsMenu) ui.settingsMenu.classList.remove("hidden");
+      }
+
+      function openStatsMenu() {
+        updateStatsUI();
+        if (ui.settingsMenu) ui.settingsMenu.classList.add("hidden");
+        if (ui.statsMenu) ui.statsMenu.classList.remove("hidden");
+      }
+
+      function setMenuControlsVisible(visible, animate = true) {
+        if (!ui.menuControls) return;
+        if (state.menuControlsVisible === visible && !visible) return;
+        if (state.menuControlsVisible === visible && visible && !ui.menuControls.classList.contains("menu-hidden")) return;
+
+        state.menuControlsVisible = visible;
+
+        if (visible) {
+          ui.menuControls.classList.remove("menu-hidden");
+          ui.menuControls.classList.remove("menu-exit");
+          ui.menuControls.setAttribute("aria-hidden", "false");
+          updateSettingsUI();
+          updateStatsUI();
+          return;
+        }
+
+        closeMenus();
+        ui.menuControls.setAttribute("aria-hidden", "true");
+
+        if (animate) {
+          ui.menuControls.classList.add("menu-exit");
+          window.setTimeout(() => {
+            if (!state.menuControlsVisible) {
+              ui.menuControls.classList.add("menu-hidden");
+            }
+          }, 440);
+        } else {
+          ui.menuControls.classList.add("menu-hidden");
+          ui.menuControls.classList.remove("menu-exit");
+        }
       }
 
       function isStandaloneWebApp() {
@@ -1005,9 +1667,12 @@
         state.crashExiting = false;
         state.gameplayIntro = 0;
         state.gameplayIntroActive = false;
+        state.best = getCurrentBestScore();
         resetBird();
         updateHud();
         hidePanel();
+        closeMenus();
+        setMenuControlsVisible(false, false);
 
         if (state.hasStartedOnce) {
           hideVersionBadge();
@@ -1034,6 +1699,7 @@
         state.titleBird.pass = 0;
         state.titleBird.targetY = H * 0.42;
         showVersionBadge();
+        setMenuControlsVisible(true, false);
       }
 
       function beginRun() {
@@ -1043,12 +1709,15 @@
         state.crashExiting = false;
         state.mode = "playing";
         hidePanel();
+        closeMenus();
+        setMenuControlsVisible(false, true);
         if (state.titleExit >= 1) hideVersionBadge();
 
         // The first tap starts the game and makes the bird flap.
         // Play the flap sound here too so iOS has a real SFX event on the
         // first interaction, which also helps the Web Audio music begin.
         playFirstTapFlapSound();
+        recordFlap();
 
         bird.vy = -Math.max(325, H * 0.6);
         bird.angle = -0.42;
@@ -1068,6 +1737,7 @@
 
         slideAwayVersionBadge();
         hidePanel();
+        setMenuControlsVisible(false, true);
       }
 
       function beginCrashExitThenStart() {
@@ -1077,6 +1747,7 @@
         state.crashExiting = true;
         state.crashExit = 0;
         state.columnsBehindGround = true;
+        setMenuControlsVisible(false, true);
 
         // Push all existing feathers offscreen instead of letting them vanish.
         for (const f of state.crashFeathers) {
@@ -1106,12 +1777,10 @@
         state.crashExiting = false;
         state.crashFeathers = [];
         hidePanel();
+        closeMenus();
+        setMenuControlsVisible(false, true);
 
-        if (state.score > state.best) {
-          state.best = state.score;
-          saveBestScore(state.best);
-        }
-
+        recordHighestScore(state.score);
         updateHud();
         spawnCrashFeathers();
         burst(bird.x, bird.y, 16, "#fff4c7");
@@ -1119,6 +1788,7 @@
 
       function flap() {
         playFlapSound();
+        recordFlap();
         bird.vy = -Math.max(325, H * 0.6);
         bird.angle = -0.42;
         burst(bird.x - 8, bird.y + 6, 4, "rgba(255,255,255,.42)", true);
@@ -1246,6 +1916,7 @@
 
       function scorePipe() {
         state.score += 1;
+        recordColumnPass();
         updateHud();
         state.flash = 0.05;
         burst(bird.x + bird.width * 0.18, bird.y - bird.height * 0.05, 10, "rgba(255,245,168,.75)", true);
@@ -1357,6 +2028,7 @@
       }
 
       function input() {
+        if (isMenuOpen()) return;
         unlockAndStartMusic();
 
         if (state.mode === "loading") return;
@@ -1463,6 +2135,10 @@
           updateCrashFeathers(dt);
           updateParticles(dt);
 
+          if (!state.crashExiting && state.crashLock <= 0 && state.crashAnim >= 1) {
+            setMenuControlsVisible(true, true);
+          }
+
           if (state.crashExiting && state.crashExit >= 1) {
             startFresh();
           }
@@ -1506,27 +2182,34 @@
         bird.y += bird.vy * dt;
         bird.angle = clamp(bird.vy / (H * 0.8), -0.65, 1.12);
 
-        state.spawnTimer += dt;
-        const spawnEvery = currentSpawnInterval();
-        while (state.spawnTimer >= spawnEvery) {
-          state.spawnTimer -= spawnEvery;
-          addPipe();
-        }
+        const profile = currentDifficultyProfile();
 
-        for (const pipe of state.pipes) {
-          pipe.x -= speed * dt;
-
-          if (!pipe.scored && pipe.x + pipe.width < bird.x) {
-            pipe.scored = true;
-            scorePipe();
+        if (profile.noPipes) {
+          state.pipes = [];
+          state.spawnTimer = 0;
+        } else {
+          state.spawnTimer += dt;
+          const spawnEvery = currentSpawnInterval();
+          while (state.spawnTimer >= spawnEvery) {
+            state.spawnTimer -= spawnEvery;
+            addPipe();
           }
 
-          if (collides(pipe)) {
-            gameOver();
-          }
-        }
+          for (const pipe of state.pipes) {
+            pipe.x -= speed * dt;
 
-        state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -240);
+            if (!pipe.scored && pipe.x + pipe.width < bird.x) {
+              pipe.scored = true;
+              scorePipe();
+            }
+
+            if (collides(pipe)) {
+              gameOver();
+            }
+          }
+
+          state.pipes = state.pipes.filter(pipe => pipe.x + pipe.width > -240);
+        }
 
         const ceiling = bird.height * 0.42;
         const floor = groundY - bird.height * 0.26 + 15;
@@ -1610,28 +2293,52 @@
         drawRepeatingImageTo(ctx, image, scroll, y, drawH, cropRight, overlap);
       }
 
-      function getTimeBlend() {
+      function isBrighteningTransition(fromPhase, toPhase) {
+        return (fromPhase === "night" && toPhase === "sunrise") ||
+          (fromPhase === "sunrise" && toPhase === "day");
+      }
+
+      function getLayerFadeOrder(fromPhase, toPhase) {
+        return isBrighteningTransition(fromPhase, toPhase)
+          ? ["sky", "mountains", "trees", "plants", "foreground"]
+          : ["foreground", "plants", "trees", "mountains", "sky"];
+      }
+
+      function getTimeBlend(layerGroup = "foreground") {
         const cycleSpan = TIME_CYCLE_SECONDS;
         let progress = ((state.timeCycleProgress % cycleSpan) + cycleSpan) % cycleSpan;
 
         for (const segment of TIME_SEGMENTS) {
-          if (progress <= segment.seconds) {
+          const segmentDuration = getSegmentDuration(segment);
+
+          if (progress <= segmentDuration) {
             if (segment.type === "hold" || segment.from === segment.to) {
               return [{ phase: segment.from, alpha: 1 }];
             }
 
-            const fadeT = clamp(progress / Math.max(0.001, segment.seconds), 0, 1);
-            // Keep the current phase fully visible while the next phase fades in.
-            // The incoming phase is rendered to a temporary full-opacity buffer first,
-            // then the completed layer is composited once. That prevents tile overlaps
-            // from being alpha-blended twice at the wrap seam during fades.
+            const order = getLayerFadeOrder(segment.from, segment.to);
+            const index = Math.max(0, order.indexOf(layerGroup));
+            const fadeStart = index * TIME_FADE_STAGGER;
+            const fadeT = clamp((progress - fadeStart) / Math.max(0.001, segment.seconds), 0, 1);
+
+            if (fadeT <= 0.001) {
+              return [{ phase: segment.from, alpha: 1 }];
+            }
+
+            let outgoingAlpha = 1;
+            if (fadeT >= 0.75) {
+              outgoingAlpha = 1 - fadeT;
+            } else if (fadeT >= 0.5) {
+              outgoingAlpha = 1 - ((fadeT - 0.5) / 0.25) * 0.75;
+            }
+
             return [
-              { phase: segment.from, alpha: 1 },
+              { phase: segment.from, alpha: clamp(outgoingAlpha, 0, 1) },
               { phase: segment.to, alpha: fadeT }
             ];
           }
 
-          progress -= segment.seconds;
+          progress -= segmentDuration;
         }
 
         return [{ phase: "day", alpha: 1 }];
@@ -1656,8 +2363,8 @@
         compositePhaseLayer(a);
       }
 
-      function drawTimeBackgroundLayer(layerImages, scroll, y, drawH, cropRight = 0, overlap = 0) {
-        for (const blend of getTimeBlend()) {
+      function drawTimeBackgroundLayer(layerImages, scroll, y, drawH, cropRight = 0, overlap = 0, layerGroup = "sky") {
+        for (const blend of getTimeBlend(layerGroup)) {
           const image = layerImages[blend.phase] || layerImages.day;
           drawRepeatingImageAlpha(image, scroll, y, drawH, cropRight, overlap, blend.alpha);
         }
@@ -1678,8 +2385,8 @@
         compositePhaseLayer(a);
       }
 
-      function drawTimeCropLayer(layerImages, sx, sy, sw, sh, scroll, y, drawH, overlap = 0) {
-        for (const blend of getTimeBlend()) {
+      function drawTimeCropLayer(layerImages, sx, sy, sw, sh, scroll, y, drawH, overlap = 0, layerGroup = "foreground") {
+        for (const blend of getTimeBlend(layerGroup)) {
           const image = layerImages[blend.phase] || layerImages.day;
           drawRepeatingCropAlpha(image, sx, sy, sw, sh, scroll, y, drawH, overlap, blend.alpha);
         }
@@ -1700,7 +2407,8 @@
           0,
           H,
           1,
-          1
+          1,
+          "sky"
         );
 
         drawTimeBackgroundLayer(
@@ -1714,7 +2422,8 @@
           0,
           H,
           1,
-          1
+          1,
+          "mountains"
         );
 
         drawTimeBackgroundLayer(
@@ -1728,7 +2437,8 @@
           0,
           H,
           1,
-          1
+          1,
+          "trees"
         );
 
         drawTimeBackgroundLayer(
@@ -1742,7 +2452,8 @@
           0,
           H,
           1,
-          1
+          1,
+          "plants"
         );
 
         const grad = ctx.createLinearGradient(0, 0, 0, H);
@@ -1884,7 +2595,7 @@
         const sy = BOX.birdSheet.y - BOX.birdTrimY;
         const sh = BOX.birdSheet.h + BOX.birdTrimY * 2;
 
-        for (const blend of getTimeBlend()) {
+        for (const blend of getTimeBlend("foreground")) {
           drawBirdFrameFromSheet(
             getPhaseImage(sheets, blend.phase),
             bird.frame,
@@ -2146,7 +2857,8 @@
           state.groundScroll,
           groundY,
           groundH,
-          1
+          1,
+          "foreground"
         );
 
         ctx.restore();
@@ -2194,8 +2906,55 @@
         if (state.shake > 0) ctx.restore();
       }
 
+      function preloadImageAsset(image) {
+        return new Promise(resolve => {
+          const finish = () => {
+            if (typeof image.decode === "function") {
+              image.decode().catch(() => {}).finally(resolve);
+            } else {
+              resolve();
+            }
+          };
+
+          if (image.complete && image.naturalWidth > 0) {
+            finish();
+            return;
+          }
+
+          image.addEventListener("load", finish, { once: true });
+          image.addEventListener("error", resolve, { once: true });
+        });
+      }
+
+      function warmupImages() {
+        const warmCanvas = document.createElement("canvas");
+        warmCanvas.width = 32;
+        warmCanvas.height = 32;
+        const warmCtx = warmCanvas.getContext("2d");
+        if (!warmCtx) return;
+
+        Object.values(img).forEach(image => {
+          if (!image || !image.naturalWidth) return;
+          try {
+            warmCtx.clearRect(0, 0, warmCanvas.width, warmCanvas.height);
+            warmCtx.drawImage(image, 0, 0, 32, 32);
+          } catch (err) {
+            // Ignore warmup failures.
+          }
+        });
+      }
+
+      Promise.all(Object.values(img).map(preloadImageAsset))
+        .then(() => {
+          warmupImages();
+          state.imagesReady = true;
+        })
+        .catch(() => {
+          state.imagesReady = true;
+        });
+
       function allImagesLoaded() {
-        return Object.values(img).every(i => i.complete && i.naturalWidth > 0);
+        return state.imagesReady && Object.values(img).every(i => i.complete && i.naturalWidth > 0);
       }
 
       function readyWhenLoaded() {
@@ -2223,6 +2982,85 @@
         window.visualViewport.addEventListener("resize", resize);
       }
 
+      function stopMenuEvent(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      function wireMenuButton(button, handler) {
+        if (!button) return;
+        let lastHandledAt = 0;
+
+        button.addEventListener("pointerdown", e => {
+          stopMenuEvent(e);
+          lastHandledAt = performance.now();
+          handler();
+        }, { passive: false });
+
+        ["touchstart", "mousedown"].forEach(evt => {
+          button.addEventListener(evt, stopMenuEvent, { passive: false });
+        });
+
+        button.addEventListener("click", e => {
+          stopMenuEvent(e);
+          if (performance.now() - lastHandledAt > 350) {
+            handler();
+          }
+        }, { passive: false });
+      }
+
+      wireMenuButton(ui.settingsButton, openSettingsMenu);
+      wireMenuButton(ui.statsButton, openStatsMenu);
+      wireMenuButton(ui.settingsClose, closeMenus);
+      wireMenuButton(ui.statsClose, closeMenus);
+
+      [ui.settingsMenu, ui.statsMenu].forEach(modal => {
+        if (!modal) return;
+        modal.addEventListener("pointerdown", e => {
+          e.stopPropagation();
+          if (e.target === modal) closeMenus();
+        }, { passive: false });
+        modal.addEventListener("touchstart", e => {
+          e.stopPropagation();
+        }, { passive: false });
+        modal.addEventListener("mousedown", e => {
+          e.stopPropagation();
+        }, { passive: false });
+      });
+
+      if (ui.difficultyOptions) {
+        ui.difficultyOptions.querySelectorAll(".difficulty-option").forEach(button => {
+          button.addEventListener("click", e => {
+            stopMenuEvent(e);
+            const nextDifficulty = button.dataset.difficulty;
+            if (!DIFFICULTY_MODES[nextDifficulty]) return;
+            settings.difficulty = nextDifficulty;
+            state.best = getCurrentBestScore();
+            saveSettings();
+            updateSettingsUI();
+            updateHud();
+            updateStatsUI();
+          }, { passive: false });
+        });
+      }
+
+      if (ui.musicVolume) {
+        ui.musicVolume.addEventListener("input", e => {
+          settings.musicVolume = clamp(Number(e.target.value) / 100, 0, 1);
+          saveSettings();
+          updateSettingsUI();
+          applyAudioSettings();
+        });
+      }
+
+      if (ui.sfxVolume) {
+        ui.sfxVolume.addEventListener("input", e => {
+          settings.sfxVolume = clamp(Number(e.target.value) / 100, 0, 1);
+          saveSettings();
+          updateSettingsUI();
+        });
+      }
+
       window.addEventListener("keydown", e => {
         if (e.code === "Space" || e.code === "ArrowUp") {
           e.preventDefault();
@@ -2247,7 +3085,12 @@
       setTimeout(resize, 500);
       setTimeout(resize, 1200);
       updateHud();
+      updateSettingsUI();
+      updateStatsUI();
+      updateHudVisibility();
       hidePanel();
+      closeMenus();
+      setMenuControlsVisible(false, false);
       readyWhenLoaded();
       requestAnimationFrame(loop);
     })();
