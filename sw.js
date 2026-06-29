@@ -1,4 +1,4 @@
-const CACHE_NAME = "flap-tap-v1.0.20";
+const CACHE_NAME = "flap-tap-v1.0.20b";
 
 const PRECACHE_URLS = [
   "./",
