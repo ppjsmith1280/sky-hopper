@@ -638,13 +638,16 @@
         groundSunrise: "assets/ground_sunrise.png",
         pillarCap: "assets/pillar_cap.png",
         pillarBase: "assets/pillar_base.png",
-        pillarColumn: "assets/pillar_column.png",
+        pillarColumnDay: "assets/pillar_column_day.png",
+        pillarColumnSunset: "assets/pillar_column_sunset.png",
+        pillarColumnNight: "assets/pillar_column_night.png",
+        pillarColumnSunrise: "assets/pillar_column_sunrise.png",
         music: "assets/audio/music.mp3",
         flapSound: "assets/audio/flap.mp3",
         crashSound: "assets/audio/Crash_main.mp3"
       };
 
-      const GAME_VERSION = "v1.0.19";
+      const GAME_VERSION = "v1.0.21";
 
       const canvas = document.getElementById("game");
       const ctx = canvas.getContext("2d");
@@ -654,7 +657,7 @@
       const phaseLayerCanvas = document.createElement("canvas");
       const phaseLayerCtx = phaseLayerCanvas.getContext("2d");
       phaseLayerCtx.imageSmoothingEnabled = true;
-      phaseLayerCtx.imageSmoothingQuality = "high";
+      phaseLayerCtx.imageSmoothingQuality = "medium";
 
       const stageEl = document.getElementById("stage");
       const tapZone = document.getElementById("tapZone");
@@ -694,7 +697,7 @@
       const DESIGN_RATIO = DESIGN_WIDTH / DESIGN_HEIGHT;
       const BASE_WIDTH = DESIGN_WIDTH;
       const GROUND_HEIGHT_RATIO = 0.115;
-      let renderDPR = Math.min(window.devicePixelRatio || 1, 3);
+      let renderDPR = Math.min(window.devicePixelRatio || 1, 2);
 
       const img = {
         backgroundCloudsDay: new Image(),
@@ -726,7 +729,10 @@
         groundSunrise: new Image(),
         pillarCap: new Image(),
         pillarBase: new Image(),
-        pillarColumn: new Image()
+        pillarColumnDay: new Image(),
+        pillarColumnSunset: new Image(),
+        pillarColumnNight: new Image(),
+        pillarColumnSunrise: new Image()
       };
 
       img.backgroundCloudsDay.src = ASSETS.backgroundCloudsDay;
@@ -758,7 +764,10 @@
       img.groundSunrise.src = ASSETS.groundSunrise;
       img.pillarCap.src = ASSETS.pillarCap;
       img.pillarBase.src = ASSETS.pillarBase;
-      img.pillarColumn.src = ASSETS.pillarColumn;
+      img.pillarColumnDay.src = ASSETS.pillarColumnDay;
+      img.pillarColumnSunset.src = ASSETS.pillarColumnSunset;
+      img.pillarColumnNight.src = ASSETS.pillarColumnNight;
+      img.pillarColumnSunrise.src = ASSETS.pillarColumnSunrise;
 
       const BOX = {
         birdSheet: { x: 64, y: 66, w: 2381, h: 459 },
@@ -1613,7 +1622,7 @@
 
         document.documentElement.style.setProperty("--app-height", viewH + "px");
 
-        renderDPR = Math.min(window.devicePixelRatio || 1, 3);
+        renderDPR = Math.min(window.devicePixelRatio || 1, 2);
 
         stageEl.style.setProperty("--game-css-width", cssW + "px");
         stageEl.style.setProperty("--game-css-height", cssH + "px");
@@ -1799,7 +1808,8 @@
         const baseH = width * (img.pillarBase.naturalHeight / img.pillarBase.naturalWidth);
 
         const widest = Math.max(img.pillarCap.naturalWidth, img.pillarBase.naturalWidth);
-        const shaftRatio = img.pillarColumn.naturalWidth / widest;
+        const pillarColumnMetricImage = img.pillarColumnDay;
+        const shaftRatio = pillarColumnMetricImage.naturalWidth / widest;
         const shaftW = width * shaftRatio;
 
         const capOverlapTop = Math.round(capH * 0.50);
@@ -2236,7 +2246,7 @@
 
         phaseLayerCtx.setTransform(renderDPR, 0, 0, renderDPR, 0, 0);
         phaseLayerCtx.imageSmoothingEnabled = true;
-        phaseLayerCtx.imageSmoothingQuality = "high";
+        phaseLayerCtx.imageSmoothingQuality = "medium";
       }
 
       function clearPhaseLayerBuffer() {
@@ -2471,33 +2481,70 @@
         ctx.restore();
       }
 
-      function drawTiledColumn(rect, flipY = false) {
-        if (rect.h <= 0) return;
+      function getPillarColumnPhaseImages() {
+        return {
+          day: img.pillarColumnDay,
+          sunset: img.pillarColumnSunset,
+          night: img.pillarColumnNight,
+          sunrise: img.pillarColumnSunrise
+        };
+      }
 
-        const tileH = rect.w * (img.pillarColumn.naturalHeight / img.pillarColumn.naturalWidth);
+      function drawTiledColumnTo(targetCtx, image, rect, flipY = false) {
+        if (!image || rect.h <= 0) return;
 
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(rect.x, rect.y, rect.w, rect.h);
-        ctx.clip();
+        const tileH = rect.w * (image.naturalHeight / image.naturalWidth);
+
+        targetCtx.save();
+        targetCtx.beginPath();
+        targetCtx.rect(rect.x, rect.y, rect.w, rect.h);
+        targetCtx.clip();
 
         if (flipY) {
-          ctx.translate(0, rect.y + rect.h);
-          ctx.scale(1, -1);
+          targetCtx.translate(0, rect.y + rect.h);
+          targetCtx.scale(1, -1);
           let y = 0;
           while (y < rect.h + tileH) {
-            ctx.drawImage(img.pillarColumn, rect.x, y, rect.w, tileH);
+            targetCtx.drawImage(image, rect.x, y, rect.w, tileH);
             y += tileH - 1;
           }
         } else {
           let y = rect.y;
           while (y < rect.y + rect.h + tileH) {
-            ctx.drawImage(img.pillarColumn, rect.x, y, rect.w, tileH);
+            targetCtx.drawImage(image, rect.x, y, rect.w, tileH);
             y += tileH - 1;
           }
         }
 
+        targetCtx.restore();
+      }
+
+      function drawTiledColumnAlpha(image, rect, flipY = false, alpha = 1) {
+        if (!image || rect.h <= 0 || alpha <= 0.001) return;
+
+        const a = clamp(alpha, 0, 1);
+        if (a >= 0.999) {
+          drawTiledColumnTo(ctx, image, rect, flipY);
+          return;
+        }
+
+        // Performance: columns can be alpha-drawn directly because they do not
+        // use horizontal seam overlap. Avoiding the full-screen phase buffer here
+        // removes the biggest slowdown during foreground phase fades.
+        ctx.save();
+        ctx.globalAlpha *= a;
+        drawTiledColumnTo(ctx, image, rect, flipY);
         ctx.restore();
+      }
+
+      function drawTiledColumn(rect, flipY = false) {
+        if (rect.h <= 0) return;
+
+        const phaseImages = getPillarColumnPhaseImages();
+        for (const blend of getTimeBlend("foreground")) {
+          const image = phaseImages[blend.phase] || phaseImages.day;
+          drawTiledColumnAlpha(image, rect, flipY, blend.alpha);
+        }
       }
 
 
